@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+  <html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call History</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="kaizenvoiz-theme.css">
+    <link rel="stylesheet" type="text/css" href="plugin/datatables.min.css">
+    <link rel="apple-touch-icon" type="image/png" href="logo.png">
+    <link rel="icon" type="image/x-icon" href="logo.png">
+    <style>
+      .page-container { padding: calc(var(--header-h) + var(--subheader-h) + 20px) 20px calc(var(--footer-h) + 20px); max-width: 1300px; margin: 0 auto; }
+      .card { padding: 20px; }
+      .card-title { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+      .card-title i { color: var(--accent); } 
+      .dataTables_wrapper .dataTables_paginate .paginate_button { color: var(--text-secondary) !important; border-radius: var(--radius-sm) !important; }
+      .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: var(--blue-dim) !important; color: var(--blue) !important; border-color: rgba(47,131,255,0.3) !important; }
+      .dataTables_wrapper .dataTables_info { color: var(--text-muted); font-size: 12px; font-family: var(--font-mono); }
+      .dataTables_wrapper .dataTables_length select, 
+      .dataTables_wrapper .dataTables_filter input { background: var(--input-bg) !important; border: 1px solid var(--input-border) !important; color: var(--text-primary) !important; border-radius: var(--radius-sm) !important; }
+    </style>
+  </head>
+  <body>
+      <header>
+        <img src="icons/Kaizenvoiz.png" alt="KaizenVoiz Logo">
+        <nav class="main-nav">
+          <ul>
+            <li><a href="#" onclick="openOrFocusTab('index.html')"><i class="fa fa-phone"></i> Phone</a></li>
+            <li><a href="#" onclick="openOrFocusTab('dashboard.html')"><i class="fa fa-chart-bar"></i> Dashboard</a></li>
+            <li><a href="#" onclick="openOrFocusTab('attendance.html')"><i class="fa fa-clock"></i> Attendance</a></li>
+            <li><a href="#" class="active"><i class="fa fa-history"></i> Call History</a></li>
+          </ul>
+        </nav>
+        <div class="header-right">
+          <div class="agent-status-pill"><span class="status-indicator"></span><span id="agentNameDisplay">Agent</span></div>
+          <button class="theme-toggle" id="themeToggle" title="Toggle theme"><span class="icon-sun">☀️</span><span class="icon-moon">🌙</span></button>
+          <button id="logoutBtn" class="icon-btn"><i class="fa fa-sign-out"></i> Logout</button>
+        </div>
+      </header>
+      <div class="fixed-header week-header" style="top:var(--header-h);">
+        
+        <div class="center-controls">
+          <button id="prevDay" class="nav-btn">◀</button>
+          <button id="openCalendar" class="calendar-btn">
+            <img src="icons/calendar.png" class="calendar-icon">
+          </button>
+          <span id="selectedDateLabel" class="week-range"></span>
+          <button id="nextDay" class="nav-btn">▶</button>
+        </div>
+
+      </div>
+
+      <div id="calendarPopup" class="calendar-popup hidden">
+        <div class="calendar-header">
+          <button id="calPrev">◀</button>
+          <span id="calHeader"></span>
+          <button id="calNext">▶</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+
+      <div class="week-header">
+        <div class="week-left">
+          <button id="exportBtn" class="btn-export"><i class="fa fa-download"></i> Export</button>
+        </div>
+        <div class="week-center">
+          <button id="prevWeek" class="nav-btn">◀</button>
+          <button id="openCalendar" class="calendar-btn"><img src="icons/calendar.png" class="calendar-icon"></button>
+          <span id="dateRange" class="week-range"></span>
+          <button id="nextWeek" class="nav-btn">▶</button>
+        </div>
+        <div class="week-right">
+          <input id="tableSearch" class="header-search" placeholder="🔍  Search calls…" type="search">
+        </div>
+      </div>
+
+      <div id="calendarPopup" class="calendar-popup hidden">
+        <div class="calendar-header"><button id="calPrev">◀</button><span id="calHeader"></span><button id="calNext">▶</button></div>
+        <div id="calendarGrid" class="calendar-grid days"></div>
+      </div>
+
+      <div class="page-container">
+        <div class="card">
+          <div class="card-title"><i class="fa fa-history"></i> Call History</div>
+          <table class="display" id="callHistoryTable">
+            <thead>
+              <tr>
+                <th><i class="fa-solid fa-user"></i> User Name</th>
+                <th><i class="fa-solid fa-phone"></i> Phone Number</th>
+                <th><i class="fa-solid fa-arrows-up-down-left-right"></i> Call Status</th>
+                <th><i class="fa-regular fa-clock"></i> Duration</th>
+                <th><i class="fa-regular fa-calendar"></i> Date & Time</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <footer><p>&copy; 2025 KaizenVoiz. All rights reserved.</p></footer>
+
+      <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+      <script type="text/javascript" src="/Browser-Phone/phoneUI/plugin/datatables.min.js"></script>
+      <script type="text/javascript" src="phone.js"></script>
+      <script>
+        // Close tab if logoutAllTabs is set
+        if (localStorage.getItem("logoutAllTabs") === "true") {
+          window.close();
+        }
+
+        (function(){const s=localStorage.getItem('kv-theme')||'dark';document.documentElement.setAttribute('data-theme',s);})();
+        document.getElementById('themeToggle').addEventListener('click',function(){
+          const h=document.documentElement,c=h.getAttribute('data-theme'),n=c==='dark'?'light':'dark';
+          h.setAttribute('data-theme',n);localStorage.setItem('kv-theme',n);
+        });
+        const agentId=localStorage.getItem("SipUsername")||"";
+        document.getElementById("agentNameDisplay").textContent=agentId.replace(/^webrtc_/i,"")||"Agent";
+        function openOrFocusTab(url) {
+            const win = window.open(url, url);
+
+            if (win) {
+                win.focus();
+            } else {
+                alert("Popup blocked! Please allow popups for this site.");
+            }
+        }
+        const GetAgentcallData="https://192.168.5.60/SIPApi/api/v1/ivr/GetAgentcallData";
+        let currentWeekDate=new Date(),callHistoryData=[];
+        let calendarDate = new Date();
+        let calMode = "days";
+        const popup = document.getElementById("calendarPopup");
+        function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+        function getWeekStart(date){const d=new Date(date),day=d.getDay(),diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);return d;}
+        function formatDateISO(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0');}
+        function updateDateRange(){const ws=getWeekStart(currentWeekDate);document.getElementById("dateRange").textContent=formatDateISO(ws)+" – "+formatDateISO(addDays(ws,6));}
+
+        function loadCallHistory(){
+          if(!agentId||agentId.trim()===""){alert("Agent ID null");return;}
+          fetch(GetAgentcallData,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"AgentID="+encodeURIComponent(agentId)})
+          .then(r=>r.json()).then(data=>{
+            callHistoryData=data.callHistory||[];
+            if($.fn.DataTable.isDataTable("#callHistoryTable"))window.callTable.clear().destroy();
+            window.callTable=$('#callHistoryTable').DataTable({data:callHistoryData.map(convertRow),columns:[{title:"User Name"},{title:"Phone Number"},{title:"Call Status"},{title:"Duration"},{title:"Date & Time"}],searching:true,paging:true,info:true,autoWidth:false,dom:'tipl'});
+            applySelectedWeek();
+          }).catch(err=>{console.error(err);$("#callHistoryTable tbody").html('<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Failed to load call history.</td></tr>');});
+        }
+        function buildCalendar(){ 
+          const grid=document.getElementById("calendarGrid");
+          const header=document.getElementById("calHeader");
+          grid.innerHTML="";
+          grid.className="calendar-grid";
+
+          const year=calendarDate.getFullYear();
+          const month=calendarDate.getMonth();
+
+          if(calMode==="days"){
+            grid.classList.add("days");
+            header.textContent=calendarDate.toLocaleDateString("en",{month:"long",year:"numeric"});
+
+            const weekNames=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+            weekNames.forEach(w=>{
+              const x=document.createElement("div");
+              x.classList.add("weekday-name");
+              x.textContent=w;
+              grid.appendChild(x);
+            });
+
+            let firstDay=new Date(year,month,1).getDay();
+            if(firstDay===0) firstDay=7;
+
+            const dim=new Date(year,month+1,0).getDate();
+
+            for(let i=1;i<firstDay;i++)
+              grid.appendChild(document.createElement("div"));
+
+            const weekStart=getWeekStart(currentWeekDate);
+            const weekDates=[...Array(7)].map((_,i)=>formatDateISO(addDays(weekStart,i)));
+
+            for(let d=1;d<=dim;d++){
+              const cell=document.createElement("div");
+              const full=formatDateISO(new Date(year,month,d));
+              cell.textContent=d;
+
+              if(weekDates.includes(full)) cell.classList.add("active-week");
+              if(full===formatDateISO(new Date())) cell.classList.add("today");
+
+              cell.onclick=()=>{
+                currentWeekDate=new Date(year,month,d);
+                updateDateRange();
+                applySelectedWeek();
+                popup.classList.add("hidden");
+              };
+
+              grid.appendChild(cell);
+            }
+            return;
+          }
+
+          if(calMode==="months"){
+            header.textContent=year;
+            grid.classList.add("months");
+
+            ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+            .forEach((m,i)=>{
+              const c=document.createElement("div");
+              c.textContent=m;
+              if(i===month) c.classList.add("active-week");
+              c.onclick=()=>{
+                calendarDate.setMonth(i);
+                calMode="days";
+                buildCalendar();
+              };
+              grid.appendChild(c);
+            });
+            return;
+          }
+
+          if(calMode==="years"){
+            grid.classList.add("years");
+            const startY=year-8;
+            header.textContent=`${startY} - ${startY+15}`;
+
+            for(let y=startY;y<=startY+15;y++){
+              const c=document.createElement("div");
+              c.textContent=y;
+              if(y===year) c.classList.add("active-week");
+              c.onclick=()=>{
+                calendarDate.setFullYear(y);
+                calMode="months";
+                buildCalendar();
+              };
+              grid.appendChild(c);
+            }
+          }
+        }
+
+        function convertRow(row){
+          const dateObj = parseAPIDate(row.begTime);
+
+          let rawStatus = (row.agtStatus || "").toLowerCase();
+          let cls = "cell-default";
+          let displayStatus = row.agtStatus || "";
+
+          if(rawStatus.includes("cancel")){
+            cls = "cell-cancelled";
+            displayStatus = "Declined";
+          }
+          else if(rawStatus.includes("spoken")){
+            cls = "cell-spoken";
+            displayStatus = "Spoken";
+          }
+          else if(rawStatus.includes("receive")){
+            cls = "cell-received";
+            displayStatus = "Missed Call";
+          }
+
+          return [
+            `<div style="display:flex;align-items:center;gap:8px;">
+                <div class="avatar">${(row.msiDn||"??").slice(-2)}</div>
+                <span style="color:var(--text-secondary);font-size:12px;">Customer</span>
+            </div>`,
+
+            row.msiDn || "",
+
+            `<span class="status-cell ${cls}">${displayStatus}</span>`,
+
+            formatDuration(row.agtStatusDuration),
+
+            dateObj ? dateObj.toLocaleString() : ""
+          ];
+        }
+        function filterTableByDateRange(s,e){if(!window.callTable)return;const f=callHistoryData.filter(r=>{const d=parseAPIDate(r.begTime);return d&&d>=s&&d<=e;});window.callTable.clear();window.callTable.rows.add(f.map(convertRow));window.callTable.draw();}
+        function applySelectedWeek(){const ws=getWeekStart(currentWeekDate);filterTableByDateRange(ws,addDays(ws,6));}
+        function parseAPIDate(dt){if(!dt)return null;const d=new Date(dt.replace(" ","T"));return isNaN(d.getTime())?null:d;}
+        function formatDuration(m){if(!m)return"00:00 hrs";let mins=parseInt(m);if(isNaN(mins))return"00:00 hrs";return String(Math.floor(mins/60)).padStart(2,'0')+":"+String(mins%60).padStart(2,'0')+" hrs";}
+
+        function logoutUser(){
+          const u=localStorage.getItem("SipUsername"),
+          q=localStorage.getItem("QueueID");
+          if(!u){
+            alert("SIP Username not found!");
+            return;
+          }
+          const ci=localStorage.getItem("isCheckedIn")==="true",
+          now=new Date().toISOString(),
+          t=new Date(),
+          fd=t.getFullYear()+"-"+(t.getMonth()+1).toString().padStart(2,"0")+"-"+t.getDate().toString().padStart(2,"0")+" 00:00:00.000";
+          const co=()=>{if(!ci)return Promise.resolve();
+          const f=new FormData();
+          f.append("AgentId",u);
+          f.append("Login_Time",now);
+          f.append("FileDate",fd);
+          return fetch("https://192.168.5.60/SIPApi/api/v1/ivr/CheckOut",
+          {method:"POST",body:f});};co()
+            .then(()=>{if(!q)return;let p=u.replace(/^webrtc_/i,"").trim();
+            
+          const fq=new URLSearchParams();
+          fq.append("queue",q);
+          fq.append("agentId",p);
+          return fetch("https://192.168.5.57:8181/restapi/rest/api/remove",
+          {
+            method:"POST",
+            headers:{"Content-Type":"application/x-www-form-urlencoded"},
+            body:fq
+          });})
+          .then(()=>{const lf=new FormData();
+          lf.append("SipUsername",u);
+          return fetch("https://192.168.5.60/SIPApi/api/v1/ivr/logout",
+          {method:"POST",body:lf});})
+          .then(()=>{localStorage.clear();
+            window.location.href="index.html";})
+            .catch(e=>alert("Logout failed: "+e.message));}
+
+        document.addEventListener("DOMContentLoaded",()=>{
+          updateDateRange();loadCallHistory();
+          document.getElementById("openCalendar").onclick=()=>{
+          popup.classList.toggle("hidden");
+          calMode="days";
+          buildCalendar();
+        };
+
+        document.getElementById("calPrev").onclick=()=>{
+          if(calMode==="days") calendarDate.setMonth(calendarDate.getMonth()-1);
+          else if(calMode==="months") calendarDate.setFullYear(calendarDate.getFullYear()-1);
+          else calendarDate.setFullYear(calendarDate.getFullYear()-16);
+          buildCalendar();
+        };
+
+        document.getElementById("calNext").onclick=()=>{
+          if(calMode==="days") calendarDate.setMonth(calendarDate.getMonth()+1);
+          else if(calMode==="months") calendarDate.setFullYear(calendarDate.getFullYear()+1);
+          else calendarDate.setFullYear(calendarDate.getFullYear()+16);
+          buildCalendar();
+        };
+
+        document.getElementById("calHeader").onclick=()=>{
+          calMode = (calMode==="days")?"months":(calMode==="months")?"years":"days";
+          buildCalendar();
+        };
+
+        document.addEventListener("click",(e)=>{
+          if(!popup.contains(e.target) &&
+            !document.getElementById("openCalendar").contains(e.target)){
+              popup.classList.add("hidden");
+          }
+        });
+          document.getElementById("prevWeek").onclick=()=>{currentWeekDate=addDays(currentWeekDate,-7);updateDateRange();applySelectedWeek();};
+          document.getElementById("nextWeek").onclick=()=>{currentWeekDate=addDays(currentWeekDate,7);updateDateRange();applySelectedWeek();};
+          document.getElementById("tableSearch").addEventListener("input",function(){if(window.callTable)window.callTable.search(this.value).draw();});
+          document.getElementById("logoutBtn").onclick=logoutUser;
+          document.getElementById("exportBtn").onclick=()=>{if(window.callTable){const csv=[['User Name','Phone','Status','Duration','Date'],...callHistoryData.map(r=>[r.msiDn,r.msiDn,r.agtStatus,r.agtStatusDuration,(r.begTime||"")])]  .map(r=>r.join(",")).join("\n");const a=document.createElement("a");a.href="data:text/csv,"+encodeURIComponent(csv);a.download="call-history.csv";a.click();}};
+        });
+      </script>
+  </body>
+</html>

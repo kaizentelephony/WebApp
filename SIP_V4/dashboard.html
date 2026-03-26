@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link rel="stylesheet" href="kaizenvoiz-theme.css">
+  <link rel="apple-touch-icon" type="image/png" href="logo.png">
+  <link rel="icon" type="image/x-icon" href="logo.png">
+  <style>
+    body { background: var(--bg); }
+    .container { padding: 20px; padding-top: calc(var(--header-h) + 20px); padding-bottom: calc(var(--footer-h) + 20px); max-width: 1400px; margin: 0 auto; }
+    .kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .kpi-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 12px; }
+    .kpi-icon-blue{background:var(--blue-dim);color:var(--blue)}.kpi-icon-green{background:var(--green-dim);color:var(--green)}.kpi-icon-yellow{background:var(--yellow-dim);color:var(--yellow)}.kpi-icon-red{background:var(--red-dim);color:var(--red)}
+    .dashboard-grid{display:grid;grid-template-columns:2.2fr 1.1fr 1.5fr;grid-template-rows:auto auto;gap:14px;}
+    .hourly-panel{grid-column:1;grid-row:1;}
+    .pie-panel{grid-column:1;grid-row:2;}
+    .history-panel{grid-column:2;grid-row:1 / span 2;}
+    .details-panel{grid-column:3;grid-row:1 / span 2;}
+    .panel { padding: 18px; display: flex; flex-direction: column; min-height: 340px; }
+    .calls-panel{height:719px;}
+    .details-panel{height:719px;}
+    .calls-panel .missed-wrapper,
+    .details-panel .table-wrapper{flex:1;overflow-y:auto;}
+    .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .panel-title { font-family: var(--font-mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); }
+    .panel-badge { font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; border-radius: 999px; background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(47,131,255,0.2); }
+    .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tbl th, .tbl td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+    .tbl th { color: var(--text-muted); font-size: 11px; font-weight: 600; font-family: var(--font-mono); }
+    .tbl td { color: var(--text-primary); }
+    .missed-wrapper,.table-wrapper{height:260px;overflow-y:auto;}
+    .middle-col { display: flex; flex-direction: column; gap: 14px; }
+    .donut-wrap { position: relative; display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .donut-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -65%); text-align: center; pointer-events: none; }
+    .donut-center-val { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--text-primary); }
+    .donut-center-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .legend { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .live-badge { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--green); font-family: var(--font-mono); font-weight: 600; }
+    .live-dot-badge { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-status 2s ease-in-out infinite; }
+    .week-header .center-controls{display:flex;align-items:center;gap:15px;}
+    .fixed-header {display:flex;align-items:center;justify-content:space-between;padding:10px 20px;}
+    .right-date-display{font-family:var(--font-mono);font-size:13px;color:var(--text-primary);}
+    .nav-btn{background:var(--surface);border:1px solid var(--border);color:var(--text-primary);padding:6px 10px;border-radius:6px;cursor:pointer;}
+    .calendar-btn{background:var(--surface);border:1px solid var(--border);padding:6px 10px;border-radius:6px;cursor:pointer;}
+    .selected-date-label{font-family:var(--font-mono);font-size:13px;color:var(--text-primary);min-width:150px;text-align:center;}
+    .calendar-popup{position:absolute;top:110px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);padding:15px;border-radius:10px;z-index:999;}
+    .hidden{display:none;}
+    .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px;}
+    .calendar-grid div{padding:6px;text-align:center;cursor:pointer;border-radius:6px;}
+    .calendar-grid div:hover{background:var(--blue-dim);}
+    .today{border:1px solid var(--blue);}
+    .active-date{background:var(--blue);color:#fff;}
+    .view-btn{background: var(--blue);border:none;color:#fff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;}
+    .view-btn:hover{opacity:0.85;}
+    .details-popup{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:2000;}
+    .details-content{background:var(--surface);border:1px solid var(--border);padding:20px;border-radius:10px;width:500px;max-height:80vh;overflow:auto;}
+    .details-header{display:flex;justify-content:space-between;margin-bottom:15px;font-weight:600;}
+    .details-row{margin-bottom:8px;font-size:13px;}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="icons/Kaizenvoiz.png" alt="KaizenVoiz Logo">
+  <nav class="main-nav">
+    <ul>
+      <li><a href="#" onclick="openOrFocusTab('index.html')"><i class="fa fa-phone"></i> Phone</a></li>
+      <li><a href="#" class="active"><i class="fa fa-chart-bar"></i> Dashboard</a></li>
+      <li><a href="#" onclick="openOrFocusTab('attendance.html')"><i class="fa fa-clock"></i> Attendance</a></li>
+      <li><a href="#" onclick="openOrFocusTab('call-history.html')"><i class="fa fa-history"></i> Call History</a></li>
+    </ul>
+  </nav>
+  <div class="header-right">
+    <div class="agent-status-pill"><span class="status-indicator"></span><span id="agentNameDisplay">Agent</span></div>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme"><span class="icon-sun">☀️</span><span class="icon-moon">🌙</span></button>
+    <button id="logoutBtn" class="icon-btn"><i class="fa fa-sign-out"></i> Logout</button>
+  </div>
+</header>
+<div class="fixed-header week-header" style="top:var(--header-h);">
+  
+  <div class="center-controls">
+  <button id="prevDay" class="nav-btn">◀</button>
+
+  <button id="openCalendar" class="calendar-btn">
+    <img src="icons/calendar.png" class="calendar-icon">
+  </button>
+
+  <button id="nextDay" class="nav-btn">▶</button>
+</div>
+
+<div class="right-date-display">
+  <span id="selectedDateLabel" class="selected-date-label"></span>
+</div>
+</div>
+<div id="calendarPopup" class="calendar-popup hidden">
+  <div class="calendar-header">
+    <button id="calPrev">◀</button>
+    <span id="calHeader"></span>
+    <button id="calNext">▶</button>
+  </div>
+  <div id="calendarGrid" class="calendar-grid"></div>
+</div>
+
+<div class="container">
+
+  <div class="kpi-strip">
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-blue"><i class="fa fa-phone-volume"></i></div>
+      <div class="kpi-title">Incoming Calls</div>
+      <div class="kpi-value" id="incomingCalls">—</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-green"><i class="fa fa-check-circle"></i></div>
+      <div class="kpi-title">Answered Calls</div>
+      <div class="kpi-value" id="answeredCalls">—</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-yellow"><i class="fa fa-stopwatch"></i></div>
+      <div class="kpi-title">Avg Talk Time</div>
+      <div class="kpi-value" id="avgWait">—</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon kpi-icon-red"><i class="fa fa-phone-slash"></i></div>
+      <div class="kpi-title">Missed Calls</div>
+      <div class="kpi-value" id="missedCalls">—</div>
+      <div class="kpi-down">↓ today</div>
+    </div>
+  </div>
+
+
+  <div class="dashboard-grid">
+
+    <!-- Hourly Chart -->
+    <div class="panel hourly-panel">
+      <div class="panel-header">
+        <span class="panel-title">Hourly Call Volume</span>
+        <span class="live-badge"><span class="live-dot-badge"></span>Live</span>
+      </div>
+
+      <div style="height:300px;">
+        <canvas id="waitChart"></canvas>
+      </div>
+    </div>
+
+
+    <!-- Donut Chart -->
+    <div class="panel pie-panel">
+      <div class="panel-header">
+        <span class="panel-title">Calls Today</span>
+        <span class="panel-badge" id="totalBadge">0 total</span>
+      </div>
+
+      <div class="donut-wrap">
+        <canvas id="donutChart" style="max-height:200px;"></canvas>
+
+        <div class="donut-center">
+          <div class="donut-center-val" id="donutTotal">0</div>
+          <div class="donut-center-lbl">Total</div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--blue);"></div>Answered
+        </div>
+
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--green);"></div>Other
+        </div>
+
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--red);"></div>Missed
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Calls Panel -->
+    <div class="panel history-panel calls-panel">
+      <div class="panel-header">
+        <span class="panel-title">Calls</span>
+      </div>
+
+      <div class="missed-wrapper">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Caller</th>
+              <th>Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody id="callList"></tbody>
+        </table>
+      </div>
+    </div>
+
+
+    <!-- Call Details Panel -->
+    <div class="panel details-panel">
+      <div class="panel-header">
+        <span class="panel-title">Call Details</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Caller</th>
+              <th>Time</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+
+          <tbody id="missedTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+<div id="detailsPopup" class="details-popup hidden">
+  <div class="details-content">
+    <div class="details-header">
+      <span>Complaint Details</span>
+      <button onclick="closePopup()">✖</button>
+    </div>
+
+    <div id="popupData"></div>
+  </div>
+</div>
+
+<footer><p>&copy; 2026 KaizenVoiz. All rights reserved.</p></footer>
+
+<script>
+
+// Close tab if logoutAllTabs is set
+if (localStorage.getItem("logoutAllTabs") === "true") {
+  window.close();
+}
+
+(function(){
+  const s=localStorage.getItem('kv-theme')||'dark';
+  document.documentElement.setAttribute('data-theme',s);
+})();
+
+document.getElementById('themeToggle').addEventListener('click',function(){
+  const h=document.documentElement,
+        c=h.getAttribute('data-theme'),
+        n=c==='dark'?'light':'dark';
+  h.setAttribute('data-theme',n);
+  localStorage.setItem('kv-theme',n);
+  if(window._dashboardData)renderCharts(window._dashboardData);
+});
+
+const agentId=localStorage.getItem("SipUsername")||"Agent";
+document.getElementById("agentNameDisplay").textContent=
+  agentId.replace(/^webrtc_/i,"");
+
+function openOrFocusTab(url){
+  const win=window.open(url,url);
+  if(win) win.focus();
+  else alert("Popup blocked! Please allow popups.");
+}
+
+const DASHBOARD_API=
+"https://192.168.5.60/SIPApi/api/v1/ivr/GetAgentDashboardFull";
+
+let waitChart,donutChart;
+let currentDate=new Date();
+let calendarDate=new Date();
+
+function formatDateISO(d){
+  return d.getFullYear()+"-"+
+  String(d.getMonth()+1).padStart(2,"0")+"-"+
+  String(d.getDate()).padStart(2,"0");
+}
+
+function updateDateLabel(){
+  const lbl=document.getElementById("selectedDateLabel");
+  if(!lbl) return;
+  lbl.textContent=currentDate.toLocaleDateString(
+    "en-IN",{day:"2-digit",month:"short",year:"numeric"}
+  );
+}
+
+function renderCharts(data){
+  const dark=document.documentElement
+    .getAttribute('data-theme')!=='light';
+
+  const gc=dark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)',
+        tc=dark?'#4E5870':'#94A3B8';
+
+  if(waitChart)waitChart.destroy();
+
+  waitChart=new Chart(
+    document.getElementById("waitChart"),
+    {
+      type:"line",
+      data:{
+        labels:data.hourlyCalls.map(x=>x.hour),
+        datasets:[{
+          data:data.hourlyCalls.map(x=>x.count),
+          fill:true,
+          tension:0.4,
+          borderColor:'#2F83FF',
+          borderWidth:2,
+          backgroundColor:dark?
+            'rgba(47,131,255,0.1)':
+            'rgba(47,131,255,0.08)',
+          pointBackgroundColor:'#2F83FF',
+          pointRadius:3,
+          pointHoverRadius:6
+        }]
+      },
+      options:{
+        plugins:{legend:{display:false}},
+        scales:{
+          y:{beginAtZero:true,
+             grid:{color:gc},
+             ticks:{color:tc,font:{family:'JetBrains Mono'}}},
+          x:{grid:{color:gc},
+             ticks:{color:tc,font:{family:'JetBrains Mono'}}}
+        },
+        responsive:true,
+        maintainAspectRatio:false
+      }
+    });
+
+  const sp=data.summary.callsSpoken,
+        ms=data.summary.missedCalls,
+        ot=Math.max(0,
+          data.summary.totalCalls-sp-ms),
+        tot=data.summary.totalCalls;
+
+  document.getElementById('donutTotal').textContent=tot;
+  document.getElementById('totalBadge').textContent=
+    tot+' total';
+
+  if(donutChart)donutChart.destroy();
+
+  donutChart=new Chart(
+    document.getElementById("donutChart"),
+    {
+      type:"doughnut",
+      data:{
+        labels:["Answered","Other","Missed"],
+        datasets:[{
+          data:[sp,ot,ms],
+          backgroundColor:[
+            '#2F83FF','#3DBE6C','#E55353'
+          ],
+          borderWidth:0,
+          hoverOffset:4
+        }]
+      },
+      options:{
+        cutout:"72%",
+        plugins:{legend:{display:false}},
+        responsive:true,
+        maintainAspectRatio:false
+      }
+    });
+}
+
+async function loadDashboard(){
+  if(!agentId) return;
+
+  const date=formatDateISO(currentDate);
+
+  try{
+    const r=await fetch(
+      DASHBOARD_API+
+      "?agentId="+agentId+
+      "&date="+date
+    );
+
+    const d=await r.json();
+    window._dashboardData=d;
+
+    document.getElementById('incomingCalls')
+      .textContent=d.summary.totalCalls;
+
+    document.getElementById('answeredCalls')
+      .textContent=d.summary.callsSpoken;
+
+    document.getElementById('missedCalls')
+      .textContent=d.summary.missedCalls;
+
+    document.getElementById('avgWait')
+      .textContent=d.summary.avgCallDuration;
+
+    renderCharts(d);
+
+const detailsTable = document.getElementById("missedTable");
+
+detailsTable.innerHTML =
+  (d.popupFormToday && d.popupFormToday.length)
+  ? d.popupFormToday.map(c => `
+      <tr>
+        <td>${c.phoneNo || "-"}</td>
+        <td>${c.addedTime}</td>
+        <td>
+<button class="view-btn" onclick="viewDetails('${c.phoneNo}','${c.addedTime}')">
+                View
+          </button>
+        </td>
+      </tr>
+    `).join('')
+  : `
+    <tr>
+      <td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">
+        No details available
+      </td>
+    </tr>
+  `;
+  
+  const cl = document.getElementById("callList");
+
+cl.innerHTML =
+(d.callsReceivedToday && d.callsReceivedToday.length)
+? d.callsReceivedToday.map(c => {
+
+    let badgeClass = "badge-green";
+    let statusText = c.status;
+
+    if (c.status === "Received") {
+        statusText = "Missed Call";
+        badgeClass = "badge-red";
+    }
+    else if (c.status === "Call Cancelled") {
+        statusText = "Declined";
+        badgeClass = "badge-red";
+    }
+    else if (c.status === "Spoken") {
+        statusText = "Spoken";
+        badgeClass = "badge-green";
+    }
+
+    return `
+      <tr>
+        <td>${c.callerId}</td>
+        <td>${c.callTime}</td>
+        <td>
+          <span class="badge ${badgeClass}">
+            ${statusText}
+          </span>
+        </td>
+      </tr>
+    `;
+}).join('')
+: `
+<tr>
+<td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">
+No calls found
+</td>
+</tr>
+`;
+
+  }catch(e){
+    console.error('Dashboard error:',e);
+  }
+}
+async function viewDetails(phoneNo, addedTime){
+
+  const agentId = localStorage.getItem("SipUsername");
+  const selectedDate = formatDateISO(currentDate);
+
+  const formData = new FormData();
+  formData.append("PhoneNo", phoneNo);
+  formData.append("AgentID", agentId);
+  formData.append("AddedTime", selectedDate);
+
+  try{
+
+    const res = await fetch(
+      "https://192.168.5.60/SIPApi/api/v1/ivr/GetPopupFormData",
+      {
+        method:"POST",
+        body:formData
+      }
+    );
+
+    const data = await res.json();
+
+    if(!data.length){
+      alert("No details found");
+      return;
+    }
+
+    const d = data[0];
+
+    document.getElementById("popupData").innerHTML = `
+      <div class="details-row"><b>Name:</b> ${d.FirstName} ${d.LastName}</div>
+      <div class="details-row"><b>Phone:</b> ${d.PhoneNo}</div>
+      <div class="details-row"><b>Category:</b> ${d.Category}</div>
+      <div class="details-row"><b>Sub Category:</b> ${d.SubCategory}</div>
+      <div class="details-row"><b>Priority:</b> ${d.PriorityLevel}</div>
+      <div class="details-row"><b>Status:</b> ${d.ComplaintStatus}</div>
+      <div class="details-row"><b>Summary:</b> ${d.ComplaintSummary}</div>
+      <div class="details-row"><b>Assigned To:</b> ${d.Assignto}</div>
+      <div class="details-row"><b>Callback:</b> ${d.CallbackDatetime || "-"}</div>
+    `;
+
+    document.getElementById("detailsPopup")
+      .classList.remove("hidden");
+
+  }catch(e){
+    console.error(e);
+    alert("Failed to load details");
+  }
+}
+function closePopup(){
+  document.getElementById("detailsPopup")
+    .classList.add("hidden");
+}
+/* -------- Calendar Logic -------- */
+
+function buildCalendar(){
+  const grid=document.getElementById("calendarGrid");
+  if(!grid) return;
+
+  grid.innerHTML="";
+
+  const year=calendarDate.getFullYear(),
+        month=calendarDate.getMonth();
+
+  document.getElementById("calHeader")
+    .textContent=
+    calendarDate.toLocaleDateString(
+      "en",{month:"long",year:"numeric"}
+    );
+
+  const first=new Date(year,month,1).getDay();
+  const days=new Date(year,month+1,0).getDate();
+
+  for(let i=0;i<first;i++)
+    grid.appendChild(document.createElement("div"));
+
+  for(let d=1;d<=days;d++){
+    const cell=document.createElement("div");
+    const full=new Date(year,month,d);
+    const iso=formatDateISO(full);
+
+    cell.textContent=d;
+
+    if(iso===formatDateISO(currentDate))
+      cell.classList.add("active-date");
+
+    if(iso===formatDateISO(new Date()))
+      cell.classList.add("today");
+
+    cell.onclick=()=>{
+      currentDate=full;
+      updateDateLabel();
+      loadDashboard();
+      document.getElementById("calendarPopup")
+        .classList.add("hidden");
+    };
+
+    grid.appendChild(cell);
+  }
+}
+
+/* -------- Navigation -------- */
+
+document.getElementById("prevDay").onclick=()=>{
+  currentDate.setDate(currentDate.getDate()-1);
+  updateDateLabel();
+  loadDashboard();
+};
+
+document.getElementById("nextDay").onclick=()=>{
+  currentDate.setDate(currentDate.getDate()+1);
+  updateDateLabel();
+  loadDashboard();
+};
+
+document.getElementById("openCalendar").onclick=()=>{
+  document.getElementById("calendarPopup")
+    .classList.toggle("hidden");
+  buildCalendar();
+};
+
+document.getElementById("calPrev").onclick=()=>{
+  calendarDate.setMonth(calendarDate.getMonth()-1);
+  buildCalendar();
+};
+
+document.getElementById("calNext").onclick=()=>{
+  calendarDate.setMonth(calendarDate.getMonth()+1);
+  buildCalendar();
+};
+
+/* -------- Logout (UNCHANGED) -------- */
+
+function logoutUser(){
+  const u=localStorage.getItem("SipUsername"),
+        q=localStorage.getItem("QueueID");
+
+  if(!u){
+    alert("SIP Username not found!");
+    return;
+  }
+
+  const ci=localStorage.getItem("isCheckedIn")==="true",
+        now=new Date().toISOString(),
+        t=new Date(),
+        fd=t.getFullYear()+"-"+
+           (t.getMonth()+1).toString().padStart(2,"0")+"-"+
+           t.getDate().toString().padStart(2,"0")+
+           " 00:00:00.000";
+
+  const co=()=>{
+    if(!ci) return Promise.resolve();
+    const f=new FormData();
+    f.append("AgentId",u);
+    f.append("Login_Time",now);
+    f.append("FileDate",fd);
+    return fetch(
+      "https://192.168.5.60/SIPApi/api/v1/ivr/CheckOut",
+      {method:"POST",body:f}
+    );
+  };
+
+  co()
+  .then(()=>{
+    if(!q) return;
+    let p=u.replace(/^webrtc_/i,"").trim();
+    const fq=new URLSearchParams();
+    fq.append("queue",q);
+    fq.append("agentId",p);
+
+    return fetch(
+      "https://192.168.5.57:8181/restapi/rest/api/remove",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":
+          "application/x-www-form-urlencoded"
+        },
+        body:fq
+      });
+  })
+  .then(()=>{
+    const lf=new FormData();
+    lf.append("SipUsername",u);
+    return fetch(
+      "https://192.168.5.60/SIPApi/api/v1/ivr/logout",
+      {method:"POST",body:lf}
+    );
+  })
+  .then(()=>{
+    localStorage.clear();
+    window.location.href="index.html";
+  })
+  .catch(e=>
+    alert("Logout failed: "+e.message)
+  );
+}
+
+document.getElementById("logoutBtn").onclick=
+  logoutUser;
+
+/* -------- Init -------- */
+
+window.onload=()=>{
+  updateDateLabel();
+  loadDashboard();
+};
+</script>
+</body>
+</html>

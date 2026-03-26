@@ -1,0 +1,586 @@
+/* ========== base layout (kept from your file) ========== */
+body {
+  margin: 0;
+  font-family: Roboto, Arial, sans-serif;
+  background: #f6f6f6;
+}
+
+/* HEADER */
+header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 56px;
+  background: #23272b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 1000;
+}
+header img { height: 44px; margin-right: 20px; }
+.main-nav ul { list-style: none; display: flex; gap: 20px; margin:0; padding:0; }
+.main-nav a { color: #fff; text-decoration: none; }
+.main-nav a.active { font-weight: bold; }
+
+
+footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 29px;
+    background-color: #1c1f23;
+    color: white;
+    padding: 3px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    transition: background-color 0.3s ease;
+}
+footer p {
+    margin: 0;
+    font-size: 0.9rem;
+    text-align: center;
+    width: 100%;
+}
+body.light header {
+    background-color: #757c83;
+}
+body.light header nav.main-nav ul li a::after {
+    background-color: #757c83;
+}
+body.light footer {
+    background-color: #6b7078;
+}
+body.dark header {
+    background-color: #23272b;
+}
+body.dark header nav.main-nav ul li a::after {
+    background-color: #23272b;
+}
+body.dark footer {
+    background-color: #1c1f23;
+}
+
+
+/* MAIN BOX */
+.attendance-container {
+  margin: 80px auto;
+  width: 96%;
+  max-width: 1100px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px #0002;
+  position: relative;
+}
+
+/* WEEK NAV */
+.headerA {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    align-items: baseline;
+    margin-top: 9px;
+    align-items: center;
+    gap: 15px;
+}
+.nav-btn {
+    padding: 6px 14px;
+    background: #e5e7eb;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    margin-left: 4px;
+    margin-right: -12px;
+}
+.calendar-btn {
+    width: 29px;
+    height: 32px;
+    border: none;
+    background: none;
+    border-radius: 6px;
+    margin: 0 10px;
+    cursor: pointer;
+}
+
+.calendar-icon {
+   width: 30px;
+    height: 29px;
+    margin-left: -3px;
+    margin-bottom: -8px;
+}
+/* ========== timeline rows ========== */
+.timeline-container {
+  margin-top: 10px;
+  position: relative; /* reference for connectors */
+}
+
+/* day row layout (kept) */
+.day-row {
+  display: grid;
+  grid-template-columns: 70px 80px 1fr 80px 80px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+  position: relative;
+}
+
+/* labels */
+.day-label { font-weight: 700; font-size: 13px; color:#333; }
+.time-in, .time-out { font-size: 14px; color: #333; display:flex; align-items:center; }
+
+/* small dots */
+.dot { width: 7px; height: 7px; border-radius: 50%; margin-right:6px; }
+.dot-in { background: #49b76c; } .dot-out { background: #e96e6e; }
+
+/* timeline bar area (this is the bar each row uses) */
+.timeline-bar {
+  position: relative;
+  height: 7px;
+  background: #f3f3f3;
+  border-radius: 6px;
+  overflow: visible;
+}
+
+/* logged / not-logged backgrounds */
+.timeline-bar.logged {
+  background: #f3f3f3; /* keep full bar neutral gray */}
+  
+  .timeline-bar.not-logged { background: #ffe2b8; }
+.timeline-bar.weekend { background: #ffeecf; }
+
+/* session (thin green) — now taller so visible */
+.session {
+  position: absolute;
+  top: 0px;
+  height: 5px;
+  background: #4cc36f;
+  border-radius: 6px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.08) inset;
+    transition: width 0.9s linear, left 0.9s linear;
+
+}
+
+
+
+
+.session.break {
+  background: #d34b4b ;/* red */
+transition: width 0.9s linear, left 0.9s linear;
+
+}
+.session, .today-line {
+  transition: width 0.3s linear, left 0.3s linear;
+}
+
+/* bar label */
+.bar-label {
+  position: absolute;
+  top: -20px;
+  background: #fff;
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+/* today line inside the bar (blue) */
+.today-line {
+  position: absolute;
+  width: 2px;
+  top: -6px;
+  bottom: -6px;
+  background: #0080ff;
+}
+
+/* ========= time scale / connectors ========== */
+.time-scale-wrap {
+  position: relative;
+  margin-top: 16px;
+  height: 36px;
+}
+
+/* marker container positioned over the same area as timeline-bar */
+.time-scale {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 20px;
+}
+
+/* each time label positioned absolutely later */
+.time-label {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color:#555;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* dotted connector that links a today's line to time labels */
+.live-connector {
+  position: absolute;
+    border-left: 2px dotted #62a0dd;
+    height: 28px;
+    top: -368px;
+    pointer-events: none;
+}
+
+/* a small circle at the top for today's marker (aligns to the bar top) */
+.live-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #0080ff;
+  border-radius: 50%;
+  top: -6px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* weekend, today styles */
+.day-row.today .day-label { color: #0a58ca; }
+
+/* small responsive tweaks */
+@media (max-width: 700px) {
+  .day-row { grid-template-columns: 60px 70px 1fr 70px 70px; }
+}
+/* ===========================
+   CALENDAR POPUP FIX
+=========================== */
+
+.calendar-popup {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 232px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  padding: 15px;
+  z-index: 2000;
+}
+
+.calendar-popup.hidden {
+  display: none;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.calendar-header button {
+  border: none;
+  background: #e5e7eb;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.calendar-grid {
+  display: grid;
+  gap: 6px;
+}
+
+/* day names */
+.calendar-grid.days {
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekday-name {
+  font-weight: 400;
+    color: #444;
+    font-size: 14px;
+    text-align: center;
+    padding-bottom: 4px;
+}
+
+/* each day number */
+.calendar-grid.days div:not(.weekday-name) {
+  text-align: center;
+  padding: 0px 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.calendar-grid.days div:not(.weekday-name):hover {
+  background: #e8f3ff;
+}
+
+.calendar-grid .active-week {
+  background: #d0eaff;
+  border: 1px solid #7bbcff;
+}
+
+.calendar-grid .today {
+  background: #ffe19c;
+  border: 1px solid #f3b300;
+}
+
+/* month view */
+.calendar-grid.months {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.calendar-grid.months div {
+  text-align: center;
+  padding: 12px 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.calendar-grid.months div:hover {
+  background: #e8f3ff;
+}
+
+/* year view */
+.calendar-grid.years {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.calendar-grid.years div {
+  text-align: center;
+  padding: 12px 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.calendar-grid.years div:hover {
+  background: #e8f3ff;
+}
+.dot-red {
+    background-color: red !important;
+}
+.day-card, .hours-card {
+  background: #f0f4f8;
+    border-radius: 8px;
+    padding: 7px 7px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-size: 13px;
+    font-weight: 600;
+    width: 70%;
+}
+
+.day-card {
+  color: #1a73e8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 59%;
+    padding: 2px 7px;
+    width: 10px!important;
+}
+
+.day-card .day-name {
+  font-size: 13px;
+}
+
+.day-card .date-num {
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.hours-card {
+  background: #e0f7fa;
+  color: #00796b;
+}
+.fixed-header {
+  position: sticky; /* stays fixed while scrolling */
+  top: 59px;           /* stick to the top of the container/viewport */
+  z-index: 1000;    /* above timeline content */
+  background-color: #fff; /* white background */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* subtle shadow */
+  padding: 10px 20px;
+}
+
+.headerA {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;   /* left - center - right */
+  width: 100%;
+}
+
+/* center controls remain centered */
+.center-controls {
+  display: flex;
+  align-items: center;
+  /* gap: 15px; */
+  margin: 0 auto;                   /* stays centered */
+}
+
+/* left icons already correct */
+.left-icons {
+  display: flex;
+  align-items: center;
+  /* gap: 8px; */
+}
+
+/* spacer fills right side automatically */
+.right-spacer {
+  width: 60px; /* or auto */
+}
+
+/* icon button styling */
+.icon-btn {
+  padding: 6px 10px;
+  background: #e7ebf4;
+  border: 2px solid ;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn.active {
+  border-color: #2f83ff;
+  background:#cadeff;
+}
+
+
+.icon-btn:hover {
+  background: #b0dbe78a;
+}
+
+.header-icon {
+  width: 20px;
+  height: 20px;
+}
+
+
+.report-container {
+  background: #f8fafc;
+  padding: 43px;
+  border-radius: 15px;
+  margin-top: 75px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.report-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 6px 7px;
+}
+
+.report-table thead th {
+  text-align: left;
+    font-size: 15px;
+    font-weight: 1000;
+    color: #4a3d3d;
+    padding-bottom: 8px;
+    padding-left: 10px;
+    padding-top: 10px;
+}
+
+.report-row {
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  border-radius: 10px;
+}
+.report-row.weekend-row {
+    background-color: #ffe8d1 !important;   /* light orange */
+}
+
+.report-row td {
+  padding: 12px 12px;
+    font-size: 15px;
+    color: #333;
+    font-weight: 500;
+}
+
+.status-present {
+  color:#6fac6f;
+  font-weight: bold;
+}
+
+.status-absent {
+  color: #ff6969;
+  font-weight: bold;
+}
+
+.status-weekend {
+  color: #997211;
+  font-weight: bold;
+}
+.hidden {
+    display: none !important;
+}
+
+
+.break-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 16px;
+}
+
+#breakTimer {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  min-width: 90px;
+  text-align: center;
+}
+
+.break-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background-color:#5d5f22; /* Start Break - orange */
+  color: #fff;
+}
+
+.break-btn.end {
+  background-color:#f39c12;/* End Break - green */
+}
+.break-time {
+  color: #e53935;
+  font-weight: 600;
+  font-size: 12px;
+}
+/* Attendance notification styles */
+.attendance-toast {
+  position: fixed;
+  top: 115px;
+  right: 15px;
+  background: #212529ab;
+  color: #fff;
+  padding: 6px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20000;
+  transition: opacity 0.3s, transform 0.3s;
+  transform: translateY(-20px);
+}
+.attendance-toast.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}

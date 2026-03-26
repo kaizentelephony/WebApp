@@ -1,0 +1,52 @@
+<!-- 
+  KaizenVoiz – index.html HEADER PATCH
+  Replace your existing <header> block and the applyThemeToDOM() logic with this.
+  Also add: <link rel="stylesheet" href="kaizenvoiz-theme.css"> in <head>
+  And add data-theme="dark" to the <html> tag.
+-->
+
+<!-- In <html> tag, add:  data-theme="dark" -->
+<!-- In <head>, add after your existing CSS links: -->
+<!--   <link rel="stylesheet" href="kaizenvoiz-theme.css"> -->
+
+<!-- Replace the entire <header>...</header> block with: -->
+<header>
+  <img src="icons/Kaizenvoiz.png" alt="KaizenVoiz Logo">
+  <nav class="main-nav" id="mainNav" style="flex:1;">
+    <ul>
+      <li><a href="#" class="active" onclick="openOrFocusTab('index.html')"><i class="fa fa-phone"></i> Phone</a></li>
+      <li><a href="#" onclick="openOrFocusTab('dashboard.html')"><i class="fa fa-chart-bar"></i> Dashboard</a></li>
+      <li><a href="#" onclick="openOrFocusTab('attendance.html')"><i class="fa fa-clock"></i> Attendance</a></li>
+      <li><a href="#" onclick="openOrFocusTab('call-history.html')"><i class="fa fa-history"></i> Call History</a></li>
+    </ul>
+  </nav>
+  <div class="header-right">
+    <div class="agent-status-pill" id="agentPill" style="display:none;">
+      <span class="status-indicator"></span>
+      <span id="agentNameDisplay">Agent</span>
+    </div>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+      <span class="icon-sun">☀️</span>
+      <span class="icon-moon">🌙</span>
+    </button>
+    <button id="logoutBtn" class="icon-btn" style="display:none;">
+      <i class="fa fa-sign-out"></i> Logout
+    </button>
+  </div>
+</header>
+
+<!-- Replace applyThemeToDOM() with: -->
+<script>
+(function(){
+  var saved = localStorage.getItem('kv-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+
+document.getElementById('themeToggle').addEventListener('click', function() {
+  var h = document.documentElement;
+  var current = h.getAttribute('data-theme');
+  var next = current === 'dark' ? 'light' : 'dark';
+  h.setAttribute('data-theme', next);
+  localStorage.setItem('kv-theme', next);
+});
+</script>

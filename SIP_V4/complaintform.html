@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complaint Form – Agent Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2330;
+    --border: #30363d;
+    --border-active: #58a6ff;
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --accent: #1f6feb;
+    --accent-hover: #388bfd;
+    --danger: #f85149;
+    --warning: #d29922;
+    --success: #3fb950;
+    --tag-bg: #21262d;
+  }
+
+  body {
+    background: #060a0f;
+    font-family: 'IBM Plex Sans', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* Overlay backdrop */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+  /* Popup card */
+  .popup {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 620px;
+    max-width: 100%;
+    max-height: 92vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Header */
+  .popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 10;
+    border-radius: 10px 10px 0 0;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #f85149 0%, #bf2828 100%);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+  }
+
+  .header-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .header-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .case-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-hover);
+    background: rgba(31,111,235,0.12);
+    border: 1px solid rgba(31,111,235,0.3);
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    font-size: 18px;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+  }
+  .close-btn:hover { background: var(--tag-bg); color: var(--text); }
+
+  /* Form body */
+  .popup-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  /* Row grid */
+  .row { display: grid; gap: 12px; }
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* Form group */
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+
+  label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  label .req { color: var(--danger); margin-left: 2px; }
+
+  input, select, textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    padding: 8px 11px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+    width: 100%;
+  }
+  input::placeholder, textarea::placeholder { color: #3d444d; }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--border-active);
+    box-shadow: 0 0 0 3px rgba(88,166,255,0.1);
+  }
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237d8590'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+    cursor: pointer;
+  }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+  /* Priority selector */
+  .priority-group { display: flex; gap: 8px; }
+  .priority-btn {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    text-align: center;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .priority-btn:hover { border-color: var(--text-muted); color: var(--text); }
+  .priority-btn.active-low { border-color: var(--success); background: rgba(63,185,80,0.1); color: var(--success); }
+  .priority-btn.active-med { border-color: var(--warning); background: rgba(210,153,34,0.1); color: var(--warning); }
+  .priority-btn.active-high { border-color: var(--danger); background: rgba(248,81,73,0.1); color: var(--danger); }
+
+  /* Checkbox row */
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .checkbox-row input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+  .checkbox-label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .checkbox-label strong { color: var(--text); font-weight: 500; }
+
+  /* Tags input */
+  .tags-container {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-height: 38px;
+    align-items: center;
+    cursor: text;
+    transition: border-color 0.15s;
+  }
+  .tags-container:focus-within {
+    border-color: var(--border-active);
+    box-shadow: 0 0 0 3px rgba(88,166,255,0.1);
+  }
+  .tag {
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .tag-remove { cursor: pointer; opacity: 0.6; font-size: 13px; line-height: 1; }
+  .tag-remove:hover { opacity: 1; color: var(--danger); }
+  .tag-input {
+    border: none !important;
+    background: transparent !important;
+    padding: 2px 4px !important;
+    font-size: 12px !important;
+    color: var(--text) !important;
+    flex: 1;
+    min-width: 80px;
+    box-shadow: none !important;
+  }
+
+  /* Info bar */
+  .info-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(31,111,235,0.08);
+    border: 1px solid rgba(31,111,235,0.2);
+    border-radius: 6px;
+    font-size: 12px;
+    color: #7eb8f7;
+  }
+  .info-bar svg { flex-shrink: 0; opacity: 0.8; }
+
+  /* Footer */
+  .popup-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 0 0 10px 10px;
+    gap: 10px;
+  }
+
+  .footer-left { font-size: 11px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
+  .footer-left span { color: var(--danger); }
+
+  .btn-group { display: flex; gap: 8px; }
+
+  .btn {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.01em;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--tag-bg); color: var(--text); border-color: var(--text-muted); }
+  .btn-primary {
+    background: linear-gradient(135deg, #1f6feb, #0e5acf);
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .btn-primary:hover { background: linear-gradient(135deg, #388bfd, #1f6feb); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(31,111,235,0.35); }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* Success state */
+  .success-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+    gap: 14px;
+  }
+  .success-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(63,185,80,0.12);
+    border: 1px solid rgba(63,185,80,0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+  .success-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .success-sub { font-size: 12px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
+
+  /* Callback toggle */
+  .callback-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+  }
+  .callback-toggle:hover { border-color: var(--text-muted); }
+  .callback-toggle.active {
+    border-color: #3fb950;
+    background: rgba(63,185,80,0.06);
+  }
+  .callback-toggle-left { display: flex; align-items: center; gap: 10px; }
+  .callback-icon {
+    width: 30px; height: 30px;
+    background: rgba(63,185,80,0.12);
+    border: 1px solid rgba(63,185,80,0.25);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .callback-toggle-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .callback-toggle-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; font-family: 'IBM Plex Mono', monospace; }
+
+  /* Toggle switch */
+  .toggle-switch {
+    position: relative; width: 38px; height: 21px; flex-shrink: 0;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: var(--border);
+    border-radius: 21px;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 15px; height: 15px;
+    left: 3px; top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: var(--success); }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(17px); }
+
+  /* Callback panel */
+  .callback-panel {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    background: rgba(63,185,80,0.04);
+    border: 1px solid rgba(63,185,80,0.2);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    animation: expandDown 0.2s ease;
+  }
+  .callback-panel.open { display: flex; }
+  @keyframes expandDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Quick time slots */
+  .time-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+  .time-slot {
+    padding: 5px 11px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .time-slot:hover { border-color: var(--success); color: var(--success); background: rgba(63,185,80,0.07); }
+  .time-slot.selected { border-color: var(--success); background: rgba(63,185,80,0.12); color: var(--success); font-weight: 600; }
+
+  /* Callback summary pill */
+  .callback-summary {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(63,185,80,0.1);
+    border: 1px solid rgba(63,185,80,0.25);
+    border-radius: 5px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--success);
+    margin-top: 2px;
+  }
+  .callback-summary.visible { display: flex; }
+
+  /* Scrollbar */
+  .popup::-webkit-scrollbar { width: 5px; }
+  .popup::-webkit-scrollbar-track { background: transparent; }
+  .popup::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+</style>
+</head>
+<body>
+
+<div class="overlay">
+  <div class="popup" id="popup">
+
+    <!-- Header -->
+    <div class="popup-header">
+      <div class="header-left">
+        <div class="header-icon">⚠</div>
+        <div>
+          <div class="header-title">Log Customer Complaint</div>
+          <div class="header-subtitle">Contact Center · Agent Workspace</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="case-badge" id="caseId">CASE-#----</div>
+        <button class="close-btn" onclick="closePopup()">✕</button>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form id="complaintForm" onsubmit="submitForm(event)">
+      <div class="popup-body">
+
+        <!-- Customer Info -->
+        <div>
+          <div class="section-label">Customer Information</div>
+          <div class="row row-2" style="margin-bottom:12px;">
+            <div class="form-group">
+              <label>First Name <span class="req">*</span></label>
+              <input type="text" placeholder="e.g. Sarah" required>
+            </div>
+            <div class="form-group">
+              <label>Last Name <span class="req">*</span></label>
+              <input type="text" placeholder="e.g. Mitchell" required>
+            </div>
+          </div>
+          <div class="row row-3">
+            <div class="form-group">
+              <label>Account / ID <span class="req">*</span></label>
+              <input type="text" placeholder="ACC-XXXXXXXX" required>
+            </div>
+            <div class="form-group">
+              <label>Phone</label>
+              <input type="tel" placeholder="+1 (555) 000-0000">
+            </div>
+            <div class="form-group">
+              <label>Channel</label>
+              <select>
+                <option value="">Select…</option>
+                <option>Inbound Call</option>
+                <option>Outbound Call</option>
+                <option>Live Chat</option>
+                <option>Email</option>
+                <option>Social Media</option>
+                <option>Walk-in</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Complaint Details -->
+        <div>
+          <div class="section-label">Complaint Details</div>
+          <div class="row row-2" style="margin-bottom:12px;">
+            <div class="form-group">
+              <label>Category <span class="req">*</span></label>
+              <select required>
+                <option value="">Select category…</option>
+                <option>Billing & Charges</option>
+                <option>Service Outage</option>
+                <option>Product Quality</option>
+                <option>Delivery / Shipping</option>
+                <option>Agent Conduct</option>
+                <option>Wait Time</option>
+                <option>Technical Issue</option>
+                <option>Refund / Return</option>
+                <option>Account Access</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Sub-Category</label>
+              <select>
+                <option value="">Select sub-category…</option>
+                <option>Incorrect Amount</option>
+                <option>Unauthorized Charge</option>
+                <option>Duplicate Charge</option>
+                <option>Late Delivery</option>
+                <option>Wrong Item</option>
+                <option>Damaged Item</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Priority -->
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Priority Level <span class="req">*</span></label>
+            <div class="priority-group">
+              <button type="button" class="priority-btn" onclick="setPriority('low', this)">▼ Low</button>
+              <button type="button" class="priority-btn active-med" onclick="setPriority('med', this)">● Medium</button>
+              <button type="button" class="priority-btn" onclick="setPriority('high', this)">▲ High</button>
+            </div>
+            <input type="hidden" id="priorityVal" value="med">
+          </div>
+
+          <div class="form-group">
+            <label>Complaint Summary <span class="req">*</span></label>
+            <textarea placeholder="Briefly describe the customer's complaint and context of the interaction…" required></textarea>
+          </div>
+        </div>
+
+        <!-- Resolution -->
+        <div>
+          <div class="section-label">Resolution & Actions</div>
+          <div class="row row-2" style="margin-bottom:12px;">
+            <div class="form-group">
+              <label>Status</label>
+              <select>
+                <option>Open</option>
+                <option>In Progress</option>
+                <option>Escalated</option>
+                <option>Pending Customer</option>
+                <option>Resolved</option>
+                <option>Closed</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Assign To</label>
+              <select>
+                <option value="">— Self (me) —</option>
+                <option>Tier 2 Support</option>
+                <option>Billing Team</option>
+                <option>Technical Team</option>
+                <option>Supervisor</option>
+                <option>Retention Team</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Resolution Notes</label>
+            <textarea placeholder="Steps taken, commitments made, or outcome agreed with customer…" style="min-height:70px;"></textarea>
+          </div>
+
+          <!-- Tags -->
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Tags</label>
+            <div class="tags-container" id="tagsContainer" onclick="document.getElementById('tagInput').focus()">
+              <div class="tag">billing<span class="tag-remove" onclick="removeTag(this)">✕</span></div>
+              <input class="tag-input" id="tagInput" type="text" placeholder="Add tag, press Enter…" onkeydown="handleTag(event)">
+            </div>
+          </div>
+
+          <!-- Checkboxes -->
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label class="checkbox-row">
+              <input type="checkbox"> <span class="checkbox-label"><strong>Escalate to Supervisor</strong> – Flag for senior review</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" checked> <span class="checkbox-label"><strong>Send confirmation email</strong> – Notify customer with case number</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox"> <span class="checkbox-label"><strong>Regulatory / Legal flag</strong> – Requires compliance notification</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Callback Scheduling -->
+        <div>
+          <div class="section-label">Callback Scheduling</div>
+          <div class="callback-toggle" id="callbackToggle" onclick="toggleCallback()">
+            <div class="callback-toggle-left">
+              <div class="callback-icon">📞</div>
+              <div>
+                <div class="callback-toggle-title">Schedule a Callback</div>
+                <div class="callback-toggle-sub">Book a follow-up call with this customer</div>
+              </div>
+            </div>
+            <label class="toggle-switch" onclick="event.stopPropagation()">
+              <input type="checkbox" id="callbackCheck" onchange="toggleCallback()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="callback-panel" id="callbackPanel">
+            <div class="row row-2">
+              <div class="form-group">
+                <label>Callback Date <span class="req">*</span></label>
+                <input type="date" id="callbackDate" onchange="updateSummary()">
+              </div>
+              <div class="form-group">
+                <label>Callback Time <span class="req">*</span></label>
+                <input type="time" id="callbackTime" onchange="updateSummary()">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Quick Time Slots</label>
+              <div class="time-slots" id="timeSlots">
+                <div class="time-slot" onclick="pickSlot(this, '09:00')">9:00 AM</div>
+                <div class="time-slot" onclick="pickSlot(this, '10:00')">10:00 AM</div>
+                <div class="time-slot" onclick="pickSlot(this, '11:00')">11:00 AM</div>
+                <div class="time-slot" onclick="pickSlot(this, '12:00')">12:00 PM</div>
+                <div class="time-slot" onclick="pickSlot(this, '14:00')">2:00 PM</div>
+                <div class="time-slot" onclick="pickSlot(this, '15:00')">3:00 PM</div>
+                <div class="time-slot" onclick="pickSlot(this, '16:00')">4:00 PM</div>
+                <div class="time-slot" onclick="pickSlot(this, '17:00')">5:00 PM</div>
+              </div>
+            </div>
+            <div class="row row-2">
+              <div class="form-group">
+                <label>Callback Number</label>
+                <input type="tel" id="callbackPhone" placeholder="+1 (555) 000-0000" oninput="updateSummary()">
+              </div>
+              <div class="form-group">
+                <label>Assigned Agent</label>
+                <select id="callbackAgent" onchange="updateSummary()">
+                  <option value="Self">— Self (me) —</option>
+                  <option>Any Available Agent</option>
+                  <option>Tier 2 Support</option>
+                  <option>Billing Team</option>
+                  <option>Technical Team</option>
+                  <option>Retention Team</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Callback Notes</label>
+              <input type="text" placeholder="e.g. Customer available after 2pm, prefers English…">
+            </div>
+            <div class="callback-summary" id="callbackSummary">
+              <span>📅</span>
+              <span id="summaryText">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Info -->
+        <div class="info-bar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/></svg>
+          Case will be auto-saved and a case number will be generated upon submission. Call recording will be linked automatically.
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="popup-footer">
+        <div class="footer-left"><span>*</span> Required fields</div>
+        <div class="btn-group">
+          <button type="button" class="btn btn-ghost" onclick="saveDraft()">Save Draft</button>
+          <button type="submit" class="btn btn-primary">Submit Complaint →</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Success state -->
+    <div class="success-state" id="successState">
+      <div class="success-icon">✓</div>
+      <div class="success-title">Complaint Logged Successfully</div>
+      <div class="success-sub" id="successCase">CASE-20260225-0847</div>
+      <div style="font-size:12px;color:var(--text-muted);max-width:320px;line-height:1.6;">
+        The case has been created and assigned. A confirmation email will be sent to the customer.
+      </div>
+      <div class="callback-summary visible" id="successCallback" style="display:none;margin-top:4px;">
+        <span>📞</span><span id="successCallbackText"></span>
+      </div>
+      <button class="btn btn-primary" onclick="resetForm()" style="margin-top:8px;">Log Another Complaint</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Generate case ID
+  const caseNum = 'CASE-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + Math.floor(Math.random()*9000+1000);
+  document.getElementById('caseId').textContent = caseNum;
+
+  function closePopup() {
+    if (confirm('Close without saving? Any unsaved changes will be lost.')) {
+      document.querySelector('.overlay').style.opacity = '0';
+      setTimeout(() => document.querySelector('.overlay').style.display = 'none', 200);
+    }
+  }
+
+  function setPriority(level, btn) {
+    document.querySelectorAll('.priority-btn').forEach(b => b.className = 'priority-btn');
+    btn.classList.add('active-' + level);
+    document.getElementById('priorityVal').value = level;
+  }
+
+  function handleTag(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = e.target.value.trim().replace(',','');
+      if (!val) return;
+      const container = document.getElementById('tagsContainer');
+      const input = document.getElementById('tagInput');
+      const tag = document.createElement('div');
+      tag.className = 'tag';
+      tag.innerHTML = val + '<span class="tag-remove" onclick="removeTag(this)">✕</span>';
+      container.insertBefore(tag, input);
+      input.value = '';
+    }
+    if (e.key === 'Backspace' && !e.target.value) {
+      const tags = document.querySelectorAll('#tagsContainer .tag');
+      if (tags.length) tags[tags.length-1].remove();
+    }
+  }
+
+  function removeTag(el) { el.parentElement.remove(); }
+
+  // Set default callback date to today
+  document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('callbackDate').value = today;
+  });
+
+  function toggleCallback(e) {
+    const check = document.getElementById('callbackCheck');
+    const panel = document.getElementById('callbackPanel');
+    const toggle = document.getElementById('callbackToggle');
+    if (e && e.target !== check) check.checked = !check.checked;
+    if (check.checked) {
+      panel.classList.add('open');
+      toggle.classList.add('active');
+    } else {
+      panel.classList.remove('open');
+      toggle.classList.remove('active');
+      document.getElementById('callbackSummary').classList.remove('visible');
+    }
+  }
+
+  function pickSlot(el, time) {
+    document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('callbackTime').value = time;
+    updateSummary();
+  }
+
+  function updateSummary() {
+    const date = document.getElementById('callbackDate').value;
+    const time = document.getElementById('callbackTime').value;
+    const phone = document.getElementById('callbackPhone').value;
+    const agent = document.getElementById('callbackAgent').value;
+    const summary = document.getElementById('callbackSummary');
+    const summaryText = document.getElementById('summaryText');
+    if (date && time) {
+      const d = new Date(date + 'T' + time);
+      const formatted = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+        + ' at ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+      summaryText.textContent = formatted + (phone ? ' · ' + phone : '') + ' · ' + agent;
+      summary.classList.add('visible');
+    } else {
+      summary.classList.remove('visible');
+    }
+  }
+
+  function saveDraft() {
+    const btn = event.target;
+    btn.textContent = '✓ Draft Saved';
+    btn.style.color = 'var(--success)';
+    setTimeout(() => { btn.textContent = 'Save Draft'; btn.style.color = ''; }, 2000);
+  }
+
+  function submitForm(e) {
+    e.preventDefault();
+    const form = document.getElementById('complaintForm');
+    const success = document.getElementById('successState');
+    form.style.display = 'none';
+    success.style.display = 'flex';
+    document.getElementById('successCase').textContent = caseNum;
+    const cbCheck = document.getElementById('callbackCheck');
+    const cbDate = document.getElementById('callbackDate').value;
+    const cbTime = document.getElementById('callbackTime').value;
+    const cbSuccessEl = document.getElementById('successCallback');
+    if (cbCheck.checked && cbDate && cbTime) {
+      const d = new Date(cbDate + 'T' + cbTime);
+      const fmt = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' })
+        + ' at ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+      document.getElementById('successCallbackText').textContent = 'Callback scheduled: ' + fmt;
+      cbSuccessEl.style.display = 'flex';
+    } else {
+      cbSuccessEl.style.display = 'none';
+    }
+  }
+
+  function resetForm() {
+    document.getElementById('complaintForm').reset();
+    document.getElementById('complaintForm').style.display = 'block';
+    document.getElementById('successState').style.display = 'none';
+    document.querySelectorAll('.priority-btn').forEach(b => b.className = 'priority-btn');
+    document.querySelectorAll('.priority-btn')[1].classList.add('active-med');
+    document.getElementById('callbackPanel').classList.remove('open');
+    document.getElementById('callbackToggle').classList.remove('active');
+    document.getElementById('callbackSummary').classList.remove('visible');
+    document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('callbackDate').value = today;
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS | Call Center Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #1a1d24;
+    --border: #252830;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --green: #00ff88;
+    --red: #ff3366;
+    --amber: #ffaa00;
+    --text: #e8eaf0;
+    --muted: #5a5f72;
+    --dimmed: #363b4d;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,229,255,0.5);
+  }
+
+  .logo span { color: var(--muted); font-weight: 400; font-size: 11px; margin-left: 8px; letter-spacing: 0.1em; }
+
+  .topbar-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.25);
+    border-radius: 100px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--green);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .status-pill:hover { background: rgba(0,255,136,0.15); }
+  .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .clock { font-size: 14px; color: var(--text); letter-spacing: 0.05em; }
+
+  .agent-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+  }
+
+  .avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; color: white;
+  }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: grid;
+    grid-template-columns: 340px 1fr 300px;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  /* PANELS */
+  .panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel-body { flex: 1; overflow-y: auto; padding: 20px; }
+  .panel-body::-webkit-scrollbar { width: 4px; }
+  .panel-body::-webkit-scrollbar-track { background: transparent; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ======== DIALER PANEL ======== */
+  .call-status-bar {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .call-status-bar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .call-status-bar.active::before { opacity: 1; }
+  .call-status-bar.active { border-color: rgba(0,229,255,0.3); }
+
+  .call-status-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+
+  .call-number {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    min-height: 30px;
+    word-break: break-all;
+  }
+
+  .call-duration {
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 4px;
+    display: none;
+  }
+
+  .call-duration.visible { display: block; }
+
+  .caller-info {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .caller-info.visible { display: flex; }
+
+  .caller-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: white;
+    flex-shrink: 0;
+  }
+
+  .caller-name { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px; color: var(--text); }
+  .caller-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* KEYPAD */
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .key {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .key:hover { background: var(--dimmed); border-color: var(--accent); }
+  .key:active { transform: scale(0.94); background: rgba(0,229,255,0.1); }
+
+  .key-digit {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .key-alpha {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    margin-top: 2px;
+  }
+
+  /* CALL ACTIONS */
+  .call-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .action-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .action-btn:hover { border-color: var(--dimmed); color: var(--text); }
+  .action-btn.active { background: rgba(0,229,255,0.1); border-color: var(--accent); color: var(--accent); }
+  .action-btn svg { width: 18px; height: 18px; }
+
+  .dial-row {
+    display: grid;
+    grid-template-columns: 1fr 52px;
+    gap: 8px;
+  }
+
+  .btn-call {
+    background: var(--green);
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: #000;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .btn-call:hover { background: #00cc6a; transform: translateY(-1px); }
+  .btn-call:disabled { background: var(--dimmed); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .btn-end {
+    background: var(--red);
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: none;
+  }
+
+  .btn-end:hover { background: #cc2952; }
+  .btn-end.visible { display: block; }
+
+  .btn-backspace {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted);
+  }
+
+  .btn-backspace:hover { border-color: var(--red); color: var(--red); }
+
+  /* ======== DASHBOARD PANEL ======== */
+  .dashboard { overflow: hidden; display: flex; flex-direction: column; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-color, var(--accent));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.6s ease;
+  }
+
+  .stat-card:hover::after { transform: scaleX(1); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .stat-trend {
+    font-size: 11px;
+    margin-top: 4px;
+  }
+
+  .stat-trend.up { color: var(--green); }
+  .stat-trend.down { color: var(--red); }
+
+  /* QUEUE TABLE */
+  .dash-content {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+
+  .section-header {
+    padding: 16px 24px 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .badge {
+    background: rgba(0,229,255,0.1);
+    border: 1px solid rgba(0,229,255,0.25);
+    color: var(--accent);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  thead th {
+    padding: 10px 24px;
+    text-align: left;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  tbody tr:hover { background: var(--surface2); }
+
+  tbody td {
+    padding: 12px 24px;
+    vertical-align: middle;
+  }
+
+  .priority-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+  }
+
+  .p-high { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .p-med { background: var(--amber); }
+  .p-low { background: var(--green); }
+
+  .call-type {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .wait-time { color: var(--text); }
+  .wait-time.warn { color: var(--amber); }
+  .wait-time.crit { color: var(--red); }
+
+  .btn-assign {
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2);
+    color: var(--accent);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-assign:hover { background: rgba(0,229,255,0.15); }
+
+  /* ======== RIGHT PANEL ======== */
+  .right-panel { border-right: none; border-left: 1px solid var(--border); }
+
+  .metric-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+
+  .gauge-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 100px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+
+  .gauge-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 1s ease;
+  }
+
+  .gauge-fill.good { background: var(--green); }
+  .gauge-fill.warn { background: var(--amber); }
+  .gauge-fill.bad { background: var(--red); }
+
+  .metric-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+  }
+
+  /* RECENT CALLS */
+  .recent-call {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 6px;
+  }
+
+  .recent-call:hover { background: var(--surface2); }
+
+  .call-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .call-icon.in { background: rgba(0,255,136,0.1); color: var(--green); }
+  .call-icon.out { background: rgba(0,229,255,0.1); color: var(--accent); }
+  .call-icon.miss { background: rgba(255,51,102,0.1); color: var(--red); }
+
+  .rc-name { font-size: 12px; color: var(--text); font-weight: 500; }
+  .rc-time { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .rc-dur { font-size: 11px; color: var(--muted); margin-left: auto; flex-shrink: 0; }
+
+  /* MINI WAVEFORM */
+  .waveform {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 20px;
+    display: none;
+  }
+
+  .waveform.active { display: flex; }
+
+  .wave-bar {
+    width: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: wave 1s ease-in-out infinite;
+  }
+
+  @keyframes wave {
+    0%, 100% { height: 4px; }
+    50% { height: 16px; }
+  }
+
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+  .wave-bar:nth-child(6) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(7) { animation-delay: 0.1s; }
+
+  /* NOTIFICATION */
+  .notif {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 12px;
+    color: var(--text);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 100;
+    white-space: nowrap;
+    box-shadow: 0 0 30px rgba(0,229,255,0.2);
+  }
+
+  .notif.show { transform: translateX(-50%) translateY(0); }
+
+  /* INCOMING CALL OVERLAY */
+  .incoming-overlay {
+    position: fixed;
+    top: 60px; right: 20px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 20px;
+    width: 260px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,229,255,0.1);
+    transform: translateX(300px);
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 50;
+  }
+
+  .incoming-overlay.visible { transform: translateX(0); }
+  .incoming-pulse { animation: ring-pulse 1s ease-in-out infinite; }
+
+  @keyframes ring-pulse {
+    0%, 100% { box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,229,255,0.1); }
+    50% { box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 4px rgba(0,229,255,0.3), 0 0 40px rgba(0,229,255,0.15); }
+  }
+
+  .incoming-label { font-size: 10px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 10px; }
+  .incoming-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .incoming-number { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .incoming-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .btn-accept {
+    background: var(--green);
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-reject {
+    background: rgba(255,51,102,0.1);
+    border: 1px solid rgba(255,51,102,0.3);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--red);
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  /* CHART */
+  .mini-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 50px;
+    padding-top: 4px;
+  }
+
+  .chart-bar {
+    flex: 1;
+    border-radius: 3px 3px 0 0;
+    background: var(--dimmed);
+    transition: height 0.5s ease;
+    position: relative;
+  }
+
+  .chart-bar.active-bar { background: var(--accent); }
+  .chart-bar.today { background: rgba(0,229,255,0.4); }
+
+  .chart-labels {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .chart-label {
+    flex: 1;
+    text-align: center;
+    font-size: 9px;
+    color: var(--muted);
+  }
+
+  .scrollable { overflow-y: auto; flex: 1; }
+  .scrollable::-webkit-scrollbar { width: 4px; }
+  .scrollable::-webkit-scrollbar-track { background: transparent; }
+  .scrollable::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 9px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">NEXUS <span>CALL CENTER OS v2.4</span></div>
+  <div class="topbar-center">
+    <div class="status-pill" onclick="toggleStatus(this)">
+      <div class="dot"></div>
+      <span id="statusText">AVAILABLE</span>
+    </div>
+    <div class="waveform active" id="waveform">
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span>SHF: 09:00–17:00</span>
+    <span class="clock" id="clock">--:--:--</span>
+    <div class="agent-badge">
+      <div class="avatar">JD</div>
+      <span>Jordan D.</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT: DIALER -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Dialer</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted)"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013 4.18 2 2 0 014.68 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+    </div>
+    <div class="panel-body">
+
+      <div class="call-status-bar" id="callStatusBar">
+        <div class="call-status-label" id="callStatusLabel">ENTER NUMBER OR SEARCH</div>
+        <div class="call-number" id="callNumber" style="color:var(--muted);font-size:14px;">ready to dial...</div>
+        <div class="call-duration" id="callDuration">00:00:00</div>
+        <div class="caller-info" id="callerInfo">
+          <div class="caller-avatar" id="callerAvatar">?</div>
+          <div>
+            <div class="caller-name" id="callerName">Unknown</div>
+            <div class="caller-meta" id="callerMeta">No record found</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="keypad" id="keypad">
+        <div class="key" onclick="pressKey('1')"><div class="key-digit">1</div><div class="key-alpha"></div></div>
+        <div class="key" onclick="pressKey('2')"><div class="key-digit">2</div><div class="key-alpha">ABC</div></div>
+        <div class="key" onclick="pressKey('3')"><div class="key-digit">3</div><div class="key-alpha">DEF</div></div>
+        <div class="key" onclick="pressKey('4')"><div class="key-digit">4</div><div class="key-alpha">GHI</div></div>
+        <div class="key" onclick="pressKey('5')"><div class="key-digit">5</div><div class="key-alpha">JKL</div></div>
+        <div class="key" onclick="pressKey('6')"><div class="key-digit">6</div><div class="key-alpha">MNO</div></div>
+        <div class="key" onclick="pressKey('7')"><div class="key-digit">7</div><div class="key-alpha">PQRS</div></div>
+        <div class="key" onclick="pressKey('8')"><div class="key-digit">8</div><div class="key-alpha">TUV</div></div>
+        <div class="key" onclick="pressKey('9')"><div class="key-digit">9</div><div class="key-alpha">WXYZ</div></div>
+        <div class="key" onclick="pressKey('*')"><div class="key-digit">*</div><div class="key-alpha"></div></div>
+        <div class="key" onclick="pressKey('0')"><div class="key-digit">0</div><div class="key-alpha">+</div></div>
+        <div class="key" onclick="pressKey('#')"><div class="key-digit">#</div><div class="key-alpha"></div></div>
+      </div>
+
+      <div class="call-actions" id="callActions" style="display:none">
+        <div class="action-btn" id="muteBtn" onclick="toggleMute()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+          Mute
+        </div>
+        <div class="action-btn" id="holdBtn" onclick="toggleHold()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Hold
+        </div>
+        <div class="action-btn" onclick="showNotif('Transfer initiated')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+          Transfer
+        </div>
+        <div class="action-btn" onclick="showNotif('Recording started')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10"/></svg>
+          Record
+        </div>
+        <div class="action-btn" onclick="showNotif('Note saved')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Notes
+        </div>
+        <div class="action-btn" onclick="showNotif('Keypad opened')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="4" height="4"/><rect x="10" y="3" width="4" height="4"/><rect x="17" y="3" width="4" height="4"/><rect x="3" y="10" width="4" height="4"/><rect x="10" y="10" width="4" height="4"/><rect x="17" y="10" width="4" height="4"/><rect x="3" y="17" width="4" height="4"/><rect x="10" y="17" width="4" height="4"/></svg>
+          Keypad
+        </div>
+      </div>
+
+      <div class="dial-row">
+        <button class="btn-call" id="callBtn" onclick="initiateCall()" disabled>
+          📞 CALL
+        </button>
+        <button class="btn-end" id="endBtn" onclick="endCall()">📵</button>
+        <button class="btn-backspace" onclick="backspace()">⌫</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CENTER: DASHBOARD -->
+  <div class="dashboard">
+    <div class="stats-grid">
+      <div class="stat-card" style="--accent-color:var(--accent)">
+        <div class="stat-label">Calls Today</div>
+        <div class="stat-value" id="statCalls">47</div>
+        <div class="stat-trend up">↑ 12% vs yesterday</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--green)">
+        <div class="stat-label">Handled</div>
+        <div class="stat-value" id="statHandled">43</div>
+        <div class="stat-trend up">↑ 91.4% rate</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--amber)">
+        <div class="stat-label">Avg Handle Time</div>
+        <div class="stat-value" id="statAHT">4:32</div>
+        <div class="stat-trend down">↑ +0:22 vs target</div>
+      </div>
+      <div class="stat-card" style="--accent-color:var(--red)">
+        <div class="stat-label">Queue Now</div>
+        <div class="stat-value" id="statQueue">8</div>
+        <div class="stat-trend down">↑ 3 waiting >2min</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <span>Live Queue</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge" id="queueCount">8 waiting</span>
+        <button onclick="simulateIncoming()" style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.2);color:var(--accent);border-radius:6px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:'DM Mono',monospace;">+ Simulate Incoming</button>
+      </div>
+    </div>
+
+    <div class="scrollable">
+      <table>
+        <thead>
+          <tr>
+            <th>Priority</th>
+            <th>Caller</th>
+            <th>Type</th>
+            <th>Wait</th>
+            <th>Reason</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="queueTable">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RIGHT: METRICS + HISTORY -->
+  <div class="panel right-panel">
+    <div class="panel-header">
+      <span class="panel-title">Agent Metrics</span>
+      <span style="font-size:10px;color:var(--muted)">LIVE</span>
+    </div>
+    <div class="panel-body">
+
+      <div class="metric-block">
+        <div class="metric-label">Calls Volume — Last 7 Days</div>
+        <div class="mini-chart" id="miniChart"></div>
+        <div class="chart-labels" id="chartLabels"></div>
+      </div>
+
+      <div class="metric-block">
+        <div class="metric-label">Customer Satisfaction</div>
+        <div class="metric-num" style="color:var(--green)">4.7 <span style="font-size:12px;color:var(--muted)">/5.0</span></div>
+        <div class="gauge-bar"><div class="gauge-fill good" style="width:94%"></div></div>
+      </div>
+
+      <div class="metric-block">
+        <div class="metric-label">First Call Resolution</div>
+        <div class="metric-num" style="color:var(--accent)">78% <span style="font-size:12px;color:var(--muted)">target 80%</span></div>
+        <div class="gauge-bar"><div class="gauge-fill warn" style="width:78%"></div></div>
+      </div>
+
+      <div class="metric-block">
+        <div class="metric-label">Login Time</div>
+        <div class="metric-num" style="color:var(--text)">6h 14m</div>
+        <div class="gauge-bar"><div class="gauge-fill good" style="width:78%"></div></div>
+      </div>
+
+      <hr class="divider">
+
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Recent Calls</div>
+
+      <div id="recentCalls"></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- INCOMING CALL OVERLAY -->
+<div class="incoming-overlay" id="incomingOverlay">
+  <div class="incoming-label">📲 INCOMING CALL</div>
+  <div class="incoming-name" id="incomingName">Sarah Mitchell</div>
+  <div class="incoming-number" id="incomingNumber">+1 (555) 820-4471</div>
+  <div class="incoming-btns">
+    <button class="btn-accept" onclick="acceptCall()">ACCEPT</button>
+    <button class="btn-reject" onclick="rejectCall()">DECLINE</button>
+  </div>
+</div>
+
+<!-- NOTIFICATION -->
+<div class="notif" id="notif"></div>
+
+<script>
+// ==================== STATE ====================
+let dialedNumber = '';
+let callActive = false;
+let callTimer = null;
+let callSeconds = 0;
+let statusStates = ['AVAILABLE', 'BUSY', 'AWAY', 'BREAK'];
+let currentStatus = 0;
+let incomingTimeout = null;
+
+const contactDB = {
+  '+1555': { name: 'Sarah Mitchell', meta: 'Premium · Acct #4821', avatar: 'SM' },
+  '800':   { name: 'Support Line', meta: 'Internal Extension', avatar: 'SL' },
+  '1800':  { name: 'Billing Dept.', meta: 'Internal', avatar: 'BD' },
+};
+
+const queueData = [
+  { id: 1, caller: 'Michael Torres', number: '+1 (415) 667-2290', type: 'Support', wait: 312, priority: 'high', reason: 'Account locked' },
+  { id: 2, caller: 'Emma Zhao', number: '+1 (212) 450-8812', type: 'Billing', wait: 187, priority: 'med', reason: 'Payment dispute' },
+  { id: 3, caller: 'David Okafor', number: '+1 (713) 339-0015', type: 'Sales', wait: 95, priority: 'low', reason: 'Upgrade inquiry' },
+  { id: 4, caller: 'Lisa Hernandez', number: '+1 (305) 772-4400', type: 'Support', wait: 234, priority: 'high', reason: 'Service outage' },
+  { id: 5, caller: 'James Park', number: '+1 (206) 541-9920', type: 'Tech', wait: 411, priority: 'high', reason: 'Cannot login' },
+  { id: 6, caller: 'Priya Nair', number: '+1 (408) 819-3301', type: 'Billing', wait: 67, priority: 'low', reason: 'Invoice question' },
+  { id: 7, caller: 'Tom Butler', number: '+1 (617) 290-4455', type: 'Sales', wait: 145, priority: 'med', reason: 'New subscription' },
+  { id: 8, caller: 'Ana Costa', number: '+1 (786) 661-0078', type: 'Support', wait: 189, priority: 'med', reason: 'Feature request' },
+];
+
+const recentCalls = [
+  { name: 'Marcus Lee', number: '+1 (404) 522-1190', type: 'out', time: '14:22', dur: '6:14' },
+  { name: 'Unknown', number: '+1 (800) 433-0001', type: 'miss', time: '14:05', dur: '--:--' },
+  { name: 'Billing Dept.', number: 'ext. 4800', type: 'in', time: '13:48', dur: '2:30' },
+  { name: 'Rachel Kim', number: '+1 (510) 887-4321', type: 'in', time: '13:21', dur: '9:07' },
+  { name: 'Tech Support', number: 'ext. 4901', type: 'out', time: '12:55', dur: '1:45' },
+];
+
+// ==================== INIT ====================
+updateClock();
+setInterval(updateClock, 1000);
+renderQueue();
+renderRecentCalls();
+renderMiniChart();
+animateWaveform();
+
+// Auto-trigger incoming after 5s
+setTimeout(simulateIncoming, 5000);
+
+// ==================== CLOCK ====================
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-US', { hour12: false });
+}
+
+// ==================== DIALER ====================
+function pressKey(k) {
+  if (callActive) return;
+  dialedNumber += k;
+  const el = document.getElementById('callNumber');
+  el.textContent = formatNumber(dialedNumber);
+  el.style.color = 'var(--text)';
+  el.style.fontSize = dialedNumber.length > 10 ? '18px' : '22px';
+
+  document.getElementById('callStatusLabel').textContent = 'NUMBER ENTERED';
+  document.getElementById('callBtn').disabled = dialedNumber.length < 3;
+
+  // Lookup contact
+  const key = Object.keys(contactDB).find(k => dialedNumber.startsWith(k));
+  if (key && dialedNumber.length >= 4) {
+    const c = contactDB[key];
+    document.getElementById('callerName').textContent = c.name;
+    document.getElementById('callerMeta').textContent = c.meta;
+    document.getElementById('callerAvatar').textContent = c.avatar;
+    document.getElementById('callerInfo').classList.add('visible');
+    document.getElementById('callStatusBar').classList.add('active');
+  } else {
+    document.getElementById('callerInfo').classList.remove('visible');
+    document.getElementById('callStatusBar').classList.remove('active');
+  }
+}
+
+function formatNumber(n) {
+  if (n.length <= 3) return n;
+  if (n.length <= 6) return n.slice(0,3) + '-' + n.slice(3);
+  if (n.length <= 10) return '(' + n.slice(0,3) + ') ' + n.slice(3,6) + '-' + n.slice(6);
+  return n;
+}
+
+function backspace() {
+  if (callActive) return;
+  dialedNumber = dialedNumber.slice(0, -1);
+  const el = document.getElementById('callNumber');
+  if (dialedNumber === '') {
+    el.textContent = 'ready to dial...';
+    el.style.color = 'var(--muted)';
+    el.style.fontSize = '14px';
+    document.getElementById('callStatusLabel').textContent = 'ENTER NUMBER OR SEARCH';
+    document.getElementById('callerInfo').classList.remove('visible');
+    document.getElementById('callStatusBar').classList.remove('active');
+  } else {
+    el.textContent = formatNumber(dialedNumber);
+  }
+  document.getElementById('callBtn').disabled = dialedNumber.length < 3;
+}
+
+function initiateCall() {
+  if (!dialedNumber || callActive) return;
+  callActive = true;
+  callSeconds = 0;
+
+  document.getElementById('callStatusLabel').textContent = '⟳ CONNECTING...';
+  document.getElementById('callStatusBar').classList.add('active');
+  document.getElementById('callBtn').style.display = 'none';
+  document.getElementById('endBtn').classList.add('visible');
+  document.getElementById('callActions').style.display = 'grid';
+  document.getElementById('keypad').style.opacity = '0.4';
+  document.getElementById('keypad').style.pointerEvents = 'none';
+
+  setTimeout(() => {
+    document.getElementById('callStatusLabel').textContent = '● CALL ACTIVE';
+    document.getElementById('callDuration').classList.add('visible');
+    document.getElementById('callerInfo').classList.add('visible');
+    callTimer = setInterval(() => {
+      callSeconds++;
+      const h = String(Math.floor(callSeconds/3600)).padStart(2,'0');
+      const m = String(Math.floor((callSeconds%3600)/60)).padStart(2,'0');
+      const s = String(callSeconds%60).padStart(2,'0');
+      document.getElementById('callDuration').textContent = `${h}:${m}:${s}`;
+    }, 1000);
+  }, 1500);
+
+  showNotif('Calling ' + formatNumber(dialedNumber));
+}
+
+function endCall() {
+  if (!callActive) return;
+  callActive = false;
+  clearInterval(callTimer);
+
+  // Add to recent
+  const dur = formatDuration(callSeconds);
+  recentCalls.unshift({ name: document.getElementById('callerName').textContent, number: formatNumber(dialedNumber), type: 'out', time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}), dur });
+  if (recentCalls.length > 5) recentCalls.pop();
+  renderRecentCalls();
+
+  // Update stats
+  const statCalls = document.getElementById('statCalls');
+  statCalls.textContent = parseInt(statCalls.textContent) + 1;
+  const statHandled = document.getElementById('statHandled');
+  statHandled.textContent = parseInt(statHandled.textContent) + 1;
+
+  showNotif('Call ended · ' + dur);
+
+  // Reset UI
+  dialedNumber = '';
+  document.getElementById('callNumber').textContent = 'ready to dial...';
+  document.getElementById('callNumber').style.color = 'var(--muted)';
+  document.getElementById('callNumber').style.fontSize = '14px';
+  document.getElementById('callStatusLabel').textContent = 'ENTER NUMBER OR SEARCH';
+  document.getElementById('callDuration').classList.remove('visible');
+  document.getElementById('callDuration').textContent = '00:00:00';
+  document.getElementById('callerInfo').classList.remove('visible');
+  document.getElementById('callStatusBar').classList.remove('active');
+  document.getElementById('callBtn').style.display = '';
+  document.getElementById('callBtn').disabled = true;
+  document.getElementById('endBtn').classList.remove('visible');
+  document.getElementById('callActions').style.display = 'none';
+  document.getElementById('keypad').style.opacity = '1';
+  document.getElementById('keypad').style.pointerEvents = '';
+
+  // Reset mute/hold
+  document.getElementById('muteBtn').classList.remove('active');
+  document.getElementById('holdBtn').classList.remove('active');
+}
+
+function formatDuration(s) {
+  const m = Math.floor(s/60);
+  const sec = s % 60;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+function toggleMute() {
+  document.getElementById('muteBtn').classList.toggle('active');
+  showNotif(document.getElementById('muteBtn').classList.contains('active') ? 'Muted' : 'Unmuted');
+}
+
+function toggleHold() {
+  const btn = document.getElementById('holdBtn');
+  btn.classList.toggle('active');
+  const onHold = btn.classList.contains('active');
+  document.getElementById('callStatusLabel').textContent = onHold ? '⏸ ON HOLD' : '● CALL ACTIVE';
+  showNotif(onHold ? 'Call on hold' : 'Call resumed');
+}
+
+// ==================== STATUS ====================
+function toggleStatus(el) {
+  currentStatus = (currentStatus + 1) % statusStates.length;
+  const s = statusStates[currentStatus];
+  document.getElementById('statusText').textContent = s;
+  const colors = { AVAILABLE: 'var(--green)', BUSY: 'var(--red)', AWAY: 'var(--amber)', BREAK: 'var(--muted)' };
+  el.querySelector('.dot').style.background = colors[s];
+  showNotif('Status: ' + s);
+}
+
+// ==================== QUEUE ====================
+function renderQueue() {
+  const tbody = document.getElementById('queueTable');
+  tbody.innerHTML = '';
+  queueData.forEach(q => {
+    const tr = document.createElement('tr');
+    const waitClass = q.wait > 300 ? 'crit' : q.wait > 180 ? 'warn' : '';
+    const waitStr = Math.floor(q.wait/60) + ':' + String(q.wait%60).padStart(2,'0');
+    tr.innerHTML = `
+      <td><span class="priority-dot p-${q.priority}"></span>${q.priority.toUpperCase()}</td>
+      <td>
+        <div style="font-size:12px;color:var(--text)">${q.caller}</div>
+        <div style="font-size:10px;color:var(--muted)">${q.number}</div>
+      </td>
+      <td><span class="call-type">${q.type}</span></td>
+      <td><span class="wait-time ${waitClass}">${waitStr}</span></td>
+      <td style="color:var(--muted);font-size:11px">${q.reason}</td>
+      <td><button class="btn-assign" onclick="assignCall(${q.id})">Take Call</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function assignCall(id) {
+  const item = queueData.find(q => q.id === id);
+  if (!item) return;
+  if (callActive) { showNotif('Finish current call first'); return; }
+
+  dialedNumber = item.number.replace(/\D/g,'');
+  document.getElementById('callNumber').textContent = item.number;
+  document.getElementById('callNumber').style.color = 'var(--text)';
+  document.getElementById('callerName').textContent = item.caller;
+  document.getElementById('callerMeta').textContent = item.type + ' · ' + item.reason;
+  document.getElementById('callerAvatar').textContent = item.caller.split(' ').map(w=>w[0]).join('');
+  document.getElementById('callerInfo').classList.add('visible');
+  document.getElementById('callStatusBar').classList.add('active');
+  document.getElementById('callBtn').disabled = false;
+
+  showNotif('Ready to call ' + item.caller);
+}
+
+// ==================== INCOMING ====================
+function simulateIncoming() {
+  const callers = [
+    { name: 'Sarah Mitchell', number: '+1 (555) 820-4471' },
+    { name: 'David Chang', number: '+1 (323) 661-9930' },
+    { name: 'Maria Santos', number: '+1 (646) 772-1243' },
+  ];
+  const c = callers[Math.floor(Math.random() * callers.length)];
+  document.getElementById('incomingName').textContent = c.name;
+  document.getElementById('incomingNumber').textContent = c.number;
+
+  const overlay = document.getElementById('incomingOverlay');
+  overlay.classList.add('visible', 'incoming-pulse');
+
+  incomingTimeout = setTimeout(() => {
+    rejectCall();
+    recentCalls.unshift({ name: c.name, number: c.number, type: 'miss', time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}), dur: '--:--' });
+    if (recentCalls.length > 5) recentCalls.pop();
+    renderRecentCalls();
+  }, 15000);
+}
+
+function acceptCall() {
+  clearTimeout(incomingTimeout);
+  const overlay = document.getElementById('incomingOverlay');
+  overlay.classList.remove('visible', 'incoming-pulse');
+
+  const name = document.getElementById('incomingName').textContent;
+  const number = document.getElementById('incomingNumber').textContent;
+
+  dialedNumber = number.replace(/\D/g,'');
+  document.getElementById('callNumber').textContent = number;
+  document.getElementById('callNumber').style.color = 'var(--text)';
+  document.getElementById('callerName').textContent = name;
+  document.getElementById('callerMeta').textContent = 'Inbound call';
+  document.getElementById('callerAvatar').textContent = name.split(' ').map(w=>w[0]).join('');
+  document.getElementById('callStatusLabel').textContent = '● CALL ACTIVE';
+  document.getElementById('callStatusBar').classList.add('active');
+  document.getElementById('callerInfo').classList.add('visible');
+  document.getElementById('callDuration').classList.add('visible');
+  document.getElementById('callBtn').style.display = 'none';
+  document.getElementById('endBtn').classList.add('visible');
+  document.getElementById('callActions').style.display = 'grid';
+  document.getElementById('keypad').style.opacity = '0.4';
+  document.getElementById('keypad').style.pointerEvents = 'none';
+
+  callActive = true;
+  callSeconds = 0;
+  callTimer = setInterval(() => {
+    callSeconds++;
+    const h = String(Math.floor(callSeconds/3600)).padStart(2,'0');
+    const m = String(Math.floor((callSeconds%3600)/60)).padStart(2,'0');
+    const s = String(callSeconds%60).padStart(2,'0');
+    document.getElementById('callDuration').textContent = `${h}:${m}:${s}`;
+  }, 1000);
+
+  showNotif('Connected with ' + name);
+}
+
+function rejectCall() {
+  clearTimeout(incomingTimeout);
+  document.getElementById('incomingOverlay').classList.remove('visible', 'incoming-pulse');
+  showNotif('Call declined');
+}
+
+// ==================== RECENT CALLS ====================
+function renderRecentCalls() {
+  const container = document.getElementById('recentCalls');
+  container.innerHTML = '';
+  recentCalls.forEach(c => {
+    const icons = { in: '↙', out: '↗', miss: '✕' };
+    const div = document.createElement('div');
+    div.className = 'recent-call';
+    div.innerHTML = `
+      <div class="call-icon ${c.type}">${icons[c.type]}</div>
+      <div>
+        <div class="rc-name">${c.name}</div>
+        <div class="rc-time">${c.number} · ${c.time}</div>
+      </div>
+      <div class="rc-dur">${c.dur}</div>
+    `;
+    div.onclick = () => {
+      if (!callActive) {
+        dialedNumber = c.number.replace(/\D/g,'');
+        document.getElementById('callNumber').textContent = c.number;
+        document.getElementById('callNumber').style.color = 'var(--text)';
+        document.getElementById('callerName').textContent = c.name;
+        document.getElementById('callerMeta').textContent = 'Redial';
+        document.getElementById('callerAvatar').textContent = c.name.split(' ').map(w=>w[0]).join('');
+        document.getElementById('callerInfo').classList.add('visible');
+        document.getElementById('callStatusBar').classList.add('active');
+        document.getElementById('callBtn').disabled = false;
+        showNotif('Number loaded: ' + c.number);
+      }
+    };
+    container.appendChild(div);
+  });
+}
+
+// ==================== MINI CHART ====================
+function renderMiniChart() {
+  const chart = document.getElementById('miniChart');
+  const labels = document.getElementById('chartLabels');
+  const days = ['M','T','W','T','F','S','S'];
+  const values = [32, 45, 38, 51, 47, 28, 12];
+  const max = Math.max(...values);
+
+  chart.innerHTML = '';
+  labels.innerHTML = '';
+
+  values.forEach((v, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'chart-bar' + (i === 4 ? ' today' : '');
+    bar.style.height = Math.round((v / max) * 46) + 'px';
+    bar.title = `${days[i]}: ${v} calls`;
+    chart.appendChild(bar);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'chart-label';
+    lbl.textContent = days[i];
+    labels.appendChild(lbl);
+  });
+}
+
+// ==================== WAVEFORM ====================
+function animateWaveform() {
+  // waveform is CSS animated, just hide when not on call
+  setInterval(() => {
+    document.getElementById('waveform').classList.toggle('active', callActive);
+  }, 500);
+}
+
+// ==================== NOTIFICATION ====================
+function showNotif(msg) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ==================== LIVE QUEUE TIMER ====================
+setInterval(() => {
+  queueData.forEach(q => q.wait++);
+  renderQueue();
+  document.getElementById('queueCount').textContent = queueData.length + ' waiting';
+}, 1000);
+</script>
+</body>
+</html>

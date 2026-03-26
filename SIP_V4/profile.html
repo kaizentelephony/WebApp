@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="profile.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="apple-touch-icon" type="image/png" href="logo.png">
+    <link rel="icon" type="image/x-icon" href="logo.png">
+</head>
+<body>
+    <!-- Header 1 -->
+    <header style="display:flex;align-items:center;">
+        <img src="icons/Kaizenvoiz.png" alt="KaizenVoiz Logo">
+        <nav class="main-nav">
+            <ul>
+                <li><a href="dashboard.html" class="active">Dashboard</a></li>
+                <li><a href="index.html">Phone</a></li>
+                <li><a href="attendance.html">Attendance</a></li>
+                <li><a href="call-history.html">Call History</a></li>
+            </ul>
+        </nav>
+        <div style="flex:1;"></div>
+        <button id="logoutBtnHeader" class="icon-btn" title="Logout" style="margin-left:auto;"><i class="fa fa-sign-out"></i></button>
+    </header>
+    <!-- Banner Image -->
+    <div class="dashboard-banner" style="background:url('wallpaper.light.webp') center/cover no-repeat;height: 136px;width: 102%;position:relative;margin-top:56px;margin-left: -11px;">
+        <div style="position:absolute;bottom:0;left:0;width:100%;height:60px;background:linear-gradient(180deg,rgba(255,255,255,0) 0,#f6f6f6 100%);"></div>
+    </div>
+    <!-- Tabs -->
+    <!-- <div class="dashboard-tabs">
+        <ul>
+            <li class="active">Overview</li>
+            <li><a href="#">Dashboard</a></li>
+            <li><a href="#">Calendar</a></li>
+        </ul>
+    </div> -->
+    <div class="dashboard-main" style="display:flex;gap:32px;max-width:1200px;margin:0 auto;">
+        <!-- Left: Profile Card -->
+        <div class="dashboard-profile-card">
+            <div class="profile-bg"></div>
+            <img src="avatars/default.2.webp" alt="Profile" class="profile-pic">
+            <div class="profile-name">KSV74 - Harini Shree V</div>
+            <div class="profile-role">Web Developer</div>
+            <div class="profile-status in">In</div>
+            <div class="profile-timer"><span id="profileTimer">08 : 51 : 09</span></div>
+            <button class="profile-checkout">Check-out</button>
+            <div class="profile-reporting">
+                <div class="profile-report-label">Reporting To</div>
+                <div class="profile-report-value">KSV011 - Ramesh Kumar</div>
+                <div class="profile-report-status in">In</div>
+            </div>
+        </div>
+        <!-- Right: Activities and Analytics -->
+        <div style="flex:1;min-width:0;">
+            <div class="dashboard-activities-card">
+                <div class="dashboard-activities-tabs">
+                    <span class="active">Activities</span>
+                    <span>Feeds</span>
+                    <span>Profile</span>
+                    <span>Approvals</span>
+                    <span>Leave</span>
+                </div>
+                <div class="dashboard-activity-block">
+                    <div class="dashboard-activity-title"><i class="fa fa-calendar"></i> Work Schedule</div>
+                    <div class="dashboard-activity-dates">18-Jan-2026 - 24-Jan-2026</div>
+                    <div class="dashboard-activity-schedule">
+                        <div class="dashboard-activity-schedule-label">General</div>
+                        <div class="dashboard-activity-schedule-time">10:00 AM - 7:00 PM</div>
+                    </div>
+                    <div class="dashboard-activity-week">
+                        <div class="day weekend">Sun<br>18<br><span>Weekend</span></div>
+                        <div class="day leave">Mon<br>19<br><span>Casual Leave</span></div>
+                        <div class="day present">Tue<br>20<br><span>Present<br>09:26 Hrs</span></div>
+                        <div class="day present">Wed<br>21<br><span>Present<br>09:31 Hrs</span></div>
+                        <div class="day present today">Thu<br>22<br><span>Present<br>08:51 Hrs</span></div>
+                        <div class="day">Fri<br>23<br><span></span></div>
+                        <div class="day weekend">Sat<br>24<br><span>Weekend</span></div>
+                    </div>
+                </div>
+                <div class="dashboard-activity-block">
+                    <div class="dashboard-activity-title"><i class="fa fa-umbrella-beach"></i> Upcoming Holidays</div>
+                    <div class="dashboard-activity-holidays">No upcoming holidays</div>
+                </div>
+            </div>
+            <div class="dashboard-section-title">Analytics</div>
+            <div class="dashboard-analytics">
+                <div class="dashboard-analytic-box">
+                    <div class="dashboard-analytic-title">Total Calls Today</div>
+                    <div class="dashboard-analytic-value" id="callsToday">120</div>
+                </div>
+                <div class="dashboard-analytic-box">
+                    <div class="dashboard-analytic-title">Average Call Duration</div>
+                    <div class="dashboard-analytic-value" id="avgCallDuration">03:42</div>
+                </div>
+                <div class="dashboard-analytic-box">
+                    <div class="dashboard-analytic-title">Missed Calls</div>
+                    <div class="dashboard-analytic-value" id="missedCalls">7</div>
+                </div>
+                <div class="dashboard-analytic-box">
+                    <div class="dashboard-analytic-title">Longest Call Today</div>
+                    <div class="dashboard-analytic-value" id="longestCall">00:18:21</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <p>&copy; 2025 KaizenVoiz. All rights reserved.</p>
+    </footer>
+    
+</body>
+</html>

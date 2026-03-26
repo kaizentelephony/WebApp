@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link rel="stylesheet" href="kaizenvoiz-theme.css">
+  <link rel="apple-touch-icon" type="image/png" href="logo.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/x-icon" href="logo.png">
+  <style>
+    .dot-red { background-color: var(--red) !important; }
+    .break-time { color: var(--red); font-weight: 600; font-size: 12px; font-family: var(--font-mono); }
+    /* Day/Hours cards */
+    .day-card { background: var(--blue-dim); border: 1px solid rgba(47,131,255,0.2); color: var(--blue); border-radius: var(--radius-sm); padding: 4px 10px; text-align: center; font-family: var(--font-mono); font-size: 12px; font-weight: 700; display: flex; flex-direction: column; align-items: center; min-width: 60px;width:10px }
+    .hours-card { background: var(--green-dim); border: 1px solid rgba(61,190,108,0.2); color: var(--green); border-radius: var(--radius-sm); padding: 4px 10px; text-align: center; font-family: var(--font-mono); font-size: 12px; font-weight: 700; min-width: 80px; }
+    .day-name { font-size: 10px; opacity: 0.7; }
+    .date-num { font-size: 14px; font-weight: 800; }
+  </style>
+</head>
+<body>
+
+<div id="attendanceToast" class="attendance-toast"></div>
+
+<header>
+  <img src="icons/Kaizenvoiz.png" alt="KaizenVoiz Logo">
+  <nav class="main-nav">
+    <ul>
+      <li><a href="#" onclick="openOrFocusTab('index.html')"><i class="fa fa-phone"></i> Phone</a></li>
+      <li><a href="#" onclick="openOrFocusTab('dashboard.html')"><i class="fa fa-chart-bar"></i> Dashboard</a></li>
+      <li><a href="#" class="active"><i class="fa fa-clock"></i> Attendance</a></li>
+      <li><a href="#" onclick="openOrFocusTab('call-history.html')"><i class="fa fa-history"></i> Call History</a></li>
+    </ul>
+  </nav>
+  <div class="header-right">
+    <div class="agent-status-pill"><span class="status-indicator"></span><span id="agentNameDisplay">Agent</span></div>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme"><span class="icon-sun">☀️</span><span class="icon-moon">🌙</span></button>
+    <button id="logoutBtn" class="icon-btn"><i class="fa fa-sign-out"></i> Logout</button>
+  </div>
+</header>
+
+<div class="fixed-header week-header" style="top:var(--header-h);">
+  <div class="left-icons">
+    <button id="btnListView" class="icon-btn active" style="border-radius:var(--radius-sm) 0 0 var(--radius-sm);" title="Timeline view">
+      <img src="icons/listview.png" class="header-icon">
+    </button>
+    <button id="btnReportView" class="icon-btn" style="border-radius:0 var(--radius-sm) var(--radius-sm) 0;" title="Report view">
+      <img src="icons/reportview.png" class="header-icon">
+    </button>
+  </div>
+
+  <div class="center-controls">
+    <button id="prevWeek" class="nav-btn">◀</button>
+    <button id="openCalendar" class="calendar-btn"><img src="icons/calendar.png" class="calendar-icon"></button>
+    <span id="dateRange" class="week-range"></span>
+    <button id="nextWeek" class="nav-btn">▶</button>
+  </div>
+
+  <div class="break-controls">
+    <span id="breakTimer">00:00:00</span>
+    <button id="breakBtn" class="break-btn">Start Break</button>
+  </div>
+</div>
+
+  <div class="attendance-container">
+    <div id="calendarPopup" class="calendar-popup hidden">
+      <div class="calendar-header">
+        <button id="calPrev">◀</button>
+        <span id="calHeader"></span>
+        <button id="calNext">▶</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+
+    <div class="timeline-container" id="timelineContainer"></div>
+
+    <div class="time-scale-wrap">
+      <div class="time-scale" id="timeScale"></div>
+      <div id="connectorsRoot"></div>
+    </div>
+
+  </div>
+
+  <div id="reportContainer" class="hidden report-container">
+      <div class="report-title">Attendance Summary</div>
+
+      <table class="report-table">
+        <thead style="height: 40px; background-color: #e5e5f0;">
+          <tr>
+            <th>Date</th>
+            <th>First In</th>
+            <th>Last Out</th>
+            <th>Total Hours</th>
+            <th>Break</th>
+            <th>Overtime</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+
+        <tbody id="reportBody"></tbody>
+      </table>
+  </div>
+
+
+  <script>
+        function logoutUser() {
+          const SipUsername = localStorage.getItem("SipUsername");
+          const queueId = localStorage.getItem("QueueID");
+          if (!SipUsername) {
+            alert("SIP Username not found!");
+            return;
+          }
+          if (typeof updateAgentStatus === 'function') {
+            updateAgentStatus(0);
+          }
+          const isCheckedIn = localStorage.getItem("isCheckedIn") === "true";
+          const now = new Date().toISOString();
+          const today = new Date();
+          const fileDate = today.getFullYear() + "-" + (today.getMonth() + 1).toString().padStart(2, "0") + "-" + today.getDate().toString().padStart(2, "0") + " 00:00:00.000";
+          const checkoutIfNeeded = () => {
+            if (!isCheckedIn) return Promise.resolve();
+            const formData = new FormData();
+            formData.append("AgentId", SipUsername);
+            formData.append("Login_Time", now);
+            formData.append("FileDate", fileDate);
+            return fetch("https://192.168.5.60/SIPApi/api/v1/ivr/CheckOut", {
+              method: "POST",
+              body: formData
+            }).then(() => console.log("✅ Auto Check-out complete")).catch(err => console.warn("⚠ Auto Check-out error:", err));
+          };
+          checkoutIfNeeded()
+          .then(() => {
+            if (!queueId) return Promise.resolve();
+            let pureAgentId = SipUsername.replace(/^webrtc_/i, "").trim();
+            const formQueue = new URLSearchParams();
+            formQueue.append("queue", queueId);
+            formQueue.append("agentId", pureAgentId);
+            return fetch("https://192.168.5.57:8181/restapi/rest/api/remove", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: formQueue
+            }).then(() => console.log("✅ Queue Removed:", queueId, "Agent:", pureAgentId));
+          })
+          .then(() => {
+            const logoutForm = new FormData();
+            logoutForm.append("SipUsername", SipUsername);
+            // return fetch("https://192.168.5.57:8181/restapi/rest/api/logout", {
+            return fetch("https://192.168.5.60/SIPApi/api/v1/ivr/logout", {
+            
+              method: "POST",
+              body: logoutForm
+            });
+          })
+          .then(() => {
+            console.log("✅ Full Logout Complete");
+            localStorage.clear();
+            window.location.href = "index.html";
+          })
+          .catch(err => {
+            console.error("❌ Logout error:", err);
+            alert("Logout failed: " + err.message);
+          });
+        }
+
+        document.getElementById("logoutBtn").onclick = logoutUser;
+        const logoutBtnHeader = document.getElementById("logoutBtnHeader");
+        if (logoutBtnHeader) logoutBtnHeader.onclick = logoutUser;
+
+        function calculateOvertime(inRaw, outRaw) {
+                if (!inRaw && !outRaw) return "00:00";
+
+                const toMinutes = (t) => {
+                    if (!t) return null;
+                    const [h, m] = t.split(":").map(Number);
+                    return h * 60 + m;
+                };
+
+                const start = toMinutes(inRaw);
+                const end = toMinutes(outRaw);
+
+                let ot = 0;
+
+                const normalStart = 10 * 60; // 10:00
+                const normalEnd   = 19 * 60; // 19:00
+
+                // Morning OT
+                if (start !== null && start < normalStart)
+                    ot += normalStart - start;
+
+                // Evening OT
+                if (end !== null && end > normalEnd)
+                    ot += end - normalEnd;
+
+                // Convert minutes → HH:MM
+                const hh = String(Math.floor(ot / 60)).padStart(2, "0");
+                const mm = String(ot % 60).padStart(2, "0");
+
+                return `${hh}:${mm}`;
+            }
+        let weekDaysGlobal = [];
+
+        const listBtn = document.getElementById("btnListView");
+        const reportBtn = document.getElementById("btnReportView");
+
+
+        listBtn.onclick = () => {
+            listBtn.classList.add("active");
+            reportBtn.classList.remove("active");
+
+            document.querySelector(".attendance-container").classList.remove("hidden");
+            document.getElementById("reportContainer").classList.add("hidden");
+        };
+
+        reportBtn.onclick = () => {
+            reportBtn.classList.add("active");
+            listBtn.classList.remove("active");
+
+            document.querySelector(".attendance-container").classList.add("hidden");
+            document.getElementById("reportContainer").classList.remove("hidden");
+
+            populateReportView();
+        };
+
+        function populateReportView() {
+            const reportBody = document.getElementById("reportBody");
+            reportBody.innerHTML = "";
+
+            weekDaysGlobal.forEach(d => {
+                const tr = document.createElement("tr");
+                tr.classList.add("report-row");
+                if (d.weekend) tr.classList.add("weekend-row");
+
+                const status =
+                      d.weekend ? `<span class="status-weekend">Weekend</span>`
+                    : d.hasData ? `<span class="status-present">Present</span>`
+                    : `<span class="status-absent">Absent</span>`;
+                
+                
+                    // --- OVERTIME CALCULATION ---
+                const totalMins = hhmmToMins(d.hours);
+                const normalMins = 9 * 60; // 9 hours
+                let overtime = 0;
+
+                if (totalMins > normalMins) overtime = totalMins - normalMins;
+
+                const overtimeHHMM = minToHHMM(overtime);
+
+
+                tr.innerHTML = `
+                    <td>${d.date}</td>
+                    <td>${d.in || '-'}</td>
+                    <td>${d.out || '-'}</td>
+                    <td>${d.hours || '00:00:00'}</td>
+                    <td>${d.breakHHMM}</td>
+                    <td>${overtimeHHMM}</td>
+                    <td>${status}</td>
+                    `;
+
+
+                reportBody.appendChild(tr);
+            });
+        }
+
+  </script>
+
+  <footer>
+      <p>&copy; 2025 KaizenVoiz. All rights reserved.</p>
+  </footer>
+
+  <script>
+      
+
+
+  const startTime = 10; 
+  const endTime = 19;   
+  const totalHours = endTime - startTime;
+
+  let currentWeekDate = new Date();
+
+  /* Helpers */
+  function hhmmToMins(hm) {
+      if (!hm) return 0;
+      const [h, m] = hm.split(":").map(Number);
+      return h * 60 + m;
+  }
+  function secToHHMM(seconds) {
+    if (!seconds || seconds <= 0) return "00:00";
+
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+
+    return String(hrs).padStart(2, "0") + ":" +
+           String(mins).padStart(2, "0");
+  }
+  function toHHMM24(sqlTime) {
+    if (!sqlTime) return "";
+    const d = new Date(sqlTime);
+    return `${d.getHours().toString().padStart(2,"0")}:${d.getMinutes().toString().padStart(2,"0")}`;
+  }
+  function formatDisplayTime(sqlTime) {
+    if (!sqlTime) return "";
+    const d = new Date(sqlTime);
+    return d.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+  }
+  function minToHHMM(mins) {
+    const mnum = Number(mins) || 0;
+    return `${String(Math.floor(mnum/60)).padStart(2,"0")}:${String(mnum%60).padStart(2,"0")}`;
+  }
+  function getCurrentHHMM() {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+  function timeToPositionInWindow(hhmm, useNow = false) {
+    let h, m, s = 0;
+
+    if (useNow) {
+      const now = new Date();
+      h = now.getHours();
+      m = now.getMinutes();
+      s = now.getSeconds();
+    } else {
+      if (!hhmm) return 0;
+      [h, m] = hhmm.split(":").map(Number);
+    }
+
+    const hours = h + (m / 60) + (s / 3600);
+    return ((hours - startTime) / totalHours) * 100;
+  }
+
+  function clamp01(v){ 
+      return Math.max(0,Math.min(100,v)); 
+  }
+  function formatDateISO(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function getWeekStart(date){
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // Monday as start
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+  function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+
+  /* Load Attendance */
+  async function loadAttendance(baseDate = new Date()) {
+
+    const apiUrl = "https://192.168.5.57:8181/restapi/rest/api/v4/logging/t8/sheetrecord";
+    const breakApiUrl = "https://192.168.5.60/SIPApi/api/v1/ivr/GetBreakStatus";
+
+    const agentId = localStorage.getItem("SipUsername");
+    const weekStart = getWeekStart(baseDate);
+    const weekDays = [];
+
+    if (!agentId || agentId.trim() === "") {
+      alert("Agent ID null");
+      return;
+    }
+
+    /* ---------- BUILD WEEK ---------- */
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(weekStart, i);
+
+      weekDays.push({
+        date: formatDateISO(d),
+        dayName: d.toLocaleDateString("en", { weekday: "short" }),
+        dateNum: String(d.getDate()).padStart(2, "0"),
+        weekend: (d.getDay() == 0 || d.getDay() == 6),
+        in: "", out: "", inRaw: "", outRaw: "",
+        hours: "",
+        hasData: false,
+        breakSeconds: 0,
+        breakHHMM: "00:00"
+      });
+    }
+
+    /* ---------- ATTENDANCE ---------- */
+    try {
+      const fd = new URLSearchParams();
+      fd.append("AgentID", agentId);
+
+      const r = await fetch(apiUrl, { method: "POST", body: fd });
+      const json = await r.json();
+
+      json.forEach(rec => {
+        const date = (rec.fileDate || "").split(" ")[0];
+        const d = weekDays.find(x => x.date === date);
+        if (d) {
+          d.inRaw = rec.login_Time ? toHHMM24(rec.login_Time) : "";
+          d.outRaw = rec.logout_Time ? toHHMM24(rec.logout_Time) : "";
+          d.in = rec.login_Time ? formatDisplayTime(rec.login_Time) : "";
+          d.out = rec.logout_Time ? formatDisplayTime(rec.logout_Time) : "";
+          d.workSeconds = Number(rec.duration || 0);
+          d.hours = secToHHMMSS(d.workSeconds);
+          d.hasData = !!(rec.login_Time || rec.logout_Time);
+        }
+      });
+    } catch (e) {
+      console.error("Attendance error", e);
+    }
+
+    /* ----------  ADD BREAK FETCH RIGHT HERE ---------- */
+    try {
+    const fdBreak = new URLSearchParams();
+    fdBreak.append("AgentID", agentId);
+
+    const br = await fetch(breakApiUrl, {
+      method: "POST",
+      body: fdBreak
+    });
+
+    const breakJson = await br.json();
+
+    breakJson.forEach(b => {
+      const date = (b.FileDate || "").split("T")[0];
+      const day = weekDays.find(x => x.date === date);
+
+      if (!day) return;
+
+      // ✅ existing logic (keep this)
+      const secs = Number(b.BreakDuration || 0);
+      day.breakSeconds += secs;
+      day.breakHHMM = secToHHMMSS(day.breakSeconds);
+
+      // ✅ ADD THIS BLOCK (for red break segments)
+      if (b.StartBreak) {
+        if (!day.breaks) day.breaks = [];
+
+      day.breaks.push({
+          start: new Date(b.StartBreak),
+          end: b.EndBreak ? new Date(b.EndBreak) : null,
+          ongoing: !b.EndBreak
+          });
+
+      }
+    });
+
+  } catch (e) {
+    console.error("Break status error", e);
+  }
+
+    /* ---------- END BREAK FETCH ---------- */
+
+    /* ---------- RENDER ---------- */
+    document.getElementById("dateRange").textContent =
+      `${formatDateISO(weekStart)} - ${formatDateISO(addDays(weekStart, 6))}`;
+
+    weekDaysGlobal = weekDays;
+    renderTimeline(weekDays);
+    populateReportView();
+  }
+
+  function pctBetween(t, start, totalMs) {
+    return ((t - start) / totalMs) * 100;
+  }
+  /* RENDER TIMELINE */
+
+
+  function renderTimeline(weekDays){
+    const container=document.getElementById("timelineContainer");
+    container.innerHTML="";
+
+    const now = new Date();
+    const todayStr = formatDateISO(now);
+
+    weekDays.forEach(d=>{
+      const row=document.createElement("div");
+      row.className="day-row";
+      if(d.date===todayStr) row.classList.add("today");
+
+      /* LIVE LINE */
+      let liveLineHtml="";
+      if(d.date===todayStr){
+  const pos = timeToPositionInWindow(null, true);
+        if(pos>-10 && pos<110){
+          liveLineHtml=`<div class="today-line" style="left:${clamp01(pos)}%;"></div>`;
+        }
+      }
+
+      /* SESSION BAR */
+  let sessionHtml = `<span class="bar-label">${d.hours || (d.weekend ? "Weekend" : "Not logged in")}</span>`;
+
+      if (d.hasData) {
+
+const inRaw = d.inRaw || "";
+const isToday = d.date === todayStr;
+
+// ❌ Previous day without logout → do NOT color bar
+if (!d.outRaw && !isToday) {
+  sessionHtml = `<span class="bar-label">${d.weekend ? "Weekend" : "Not logged in"}</span>`;
+}
+else {
+  // ✅ Today OR has logout
+  const outRaw = d.outRaw || getCurrentHHMM();
+
+  const dayStart = new Date(`${d.date}T${inRaw}:00`);
+  const dayEnd   = d.outRaw
+      ? new Date(`${d.date}T${outRaw}:00`)
+      : new Date();
+
+  const totalMs = dayEnd - dayStart;
+
+  let leftPct  = timeToPositionInWindow(inRaw);
+let rightPct = d.outRaw
+? timeToPositionInWindow(outRaw)
+: timeToPositionInWindow(null, true);
+
+  const barLeft  = clamp01(leftPct);
+  const barRight = clamp01(rightPct);
+  const widthPct = Math.max(0, barRight - barLeft);
+
+  sessionHtml = `
+    <div class="session" style="left:${barLeft}%; width:${widthPct}%"></div>
+  `;
+
+  if (d.breaks && d.breaks.length) {
+    d.breaks.forEach(brk => {
+
+      const breakStart = brk.start < dayStart ? dayStart : brk.start;
+
+      // ✅ LIVE END TIME
+      const breakEnd = brk.ongoing
+          ? new Date()                // keeps growing every second
+          : brk.end;
+
+      if (!breakEnd || breakEnd <= breakStart) return;
+
+      const effectiveEnd = breakEnd > dayEnd ? dayEnd : breakEnd;
+
+      const breakLeft =
+          barLeft + pctBetween(breakStart, dayStart, totalMs) * (widthPct / 100);
+
+      const breakWidth =
+          pctBetween(effectiveEnd, breakStart, totalMs) * (widthPct / 100);
+
+      sessionHtml += `
+          <div class="session break"
+              style="left:${breakLeft}%; width:${breakWidth}%"></div>
+      `;
+      });
+
+  }
+
+  sessionHtml += `<span class="bar-label">${d.hours}</span>`;
+}
+}
+
+
+
+      /* DOT COLOR LOGIC */
+      function hhmmToFloat(t){ if(!t) return null; const [h,m]=t.split(":").map(Number); return h+(m/60); }
+      let inDotClass="dot-in", outDotClass="dot-out";
+      const inF = hhmmToFloat(d.inRaw), outF= hhmmToFloat(d.outRaw);
+      if(inF!==null && (inF<startTime || inF>endTime)) inDotClass+=" dot-red";
+      if(outF!==null && (outF<startTime || outF>endTime)) outDotClass+=" dot-red";
+
+      row.innerHTML = `
+        <div class="day-card">
+          <div class="day-name">${d.dayName}</div>
+          <div class="date-num">${d.dateNum}</div>
+        </div>
+        <div class="time-in">${d.in ? `<span class="dot ${inDotClass}"></span>${d.in}` : ""}</div>
+        <div class="timeline-bar ${d.hasData ? "logged" : "not-logged"} ${d.weekend ? "weekend" : ""}">
+          ${liveLineHtml}
+          ${sessionHtml}
+        </div>
+        <div class="time-out">${d.out ? `<span class="dot ${outDotClass}"></span>${d.out}` : ""}</div>
+        <div class="hours-card">${d.hasData ? d.hours + " hrs" : "00:00 hrs"}</div>
+      `;
+
+      container.appendChild(row);
+    });
+
+    renderTimeScaleAndConnectors();
+  }
+  /* =========================================
+     LIVE TIMELINE AUTO REFRESH (EVERY SECOND)
+     ========================================= */
+
+  setInterval(() => {
+    if (!weekDaysGlobal || !weekDaysGlobal.length) return;
+
+    renderTimeline(weekDaysGlobal);
+  }, 1000);
+
+
+  /* Time scale & connectors */
+  function renderTimeScaleAndConnectors(){ 
+    const timeScale=document.getElementById("timeScale");
+    const connectorsRoot=document.getElementById("connectorsRoot");
+    timeScale.innerHTML=""; connectorsRoot.innerHTML="";
+    const firstBar=document.querySelector(".timeline-bar");
+    if(!firstBar) return;
+    const barRect=firstBar.getBoundingClientRect();
+    const wrapRect=document.querySelector(".time-scale-wrap").getBoundingClientRect();
+    const barLeft=barRect.left-wrapRect.left;
+    const barW=barRect.width;
+
+    for(let h=startTime;h<=endTime;h++){
+      const pct=(h-startTime)/totalHours;
+      const px=barLeft+pct*barW;
+      const lbl=document.createElement("div");
+      lbl.className="time-label";
+      const disp=(h>12?h-12:h);
+      const ampm=(h>=12?"PM":"AM");
+      lbl.textContent=disp+ampm;
+      lbl.style.left=px+"px";
+      timeScale.appendChild(lbl);
+    }
+
+    const tl=document.querySelector(".timeline-bar .today-line");
+    if(tl){
+      const r=tl.getBoundingClientRect();
+      const x=r.left-wrapRect.left+r.width/2;
+      const conn=document.createElement("div");
+      conn.className="live-connector";
+      conn.style.left=x+"px";
+      conn.style.height="367px";
+      connectorsRoot.appendChild(conn);
+      const dot=document.createElement("div");
+      dot.className="live-dot";
+      dot.style.left=x+"px";
+      connectorsRoot.appendChild(dot);
+    }
+  }
+  window.addEventListener("resize",renderTimeScaleAndConnectors);
+
+  /* Calendar & Navigation (unchanged) */
+  const popup=document.getElementById("calendarPopup");
+  let calendarDate=new Date();
+  let calMode="days";
+
+  function buildCalendar(){ 
+    const grid=document.getElementById("calendarGrid");
+    const header=document.getElementById("calHeader");
+    grid.innerHTML=""; grid.className="calendar-grid";
+    const year=calendarDate.getFullYear();
+    const month=calendarDate.getMonth();
+    if(calMode==="days"){
+      grid.classList.add("days");
+      header.textContent=calendarDate.toLocaleDateString("en",{month:"long",year:"numeric"});
+      const weekNames=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+      weekNames.forEach(w=>{const x=document.createElement("div");x.classList.add("weekday-name");x.textContent=w;grid.appendChild(x);});
+      let firstDay=new Date(year,month,1).getDay(); if(firstDay===0) firstDay=7;
+      const dim=new Date(year,month+1,0).getDate();
+      for(let i=1;i<firstDay;i++) grid.appendChild(document.createElement("div"));
+
+      const weekStart=getWeekStart(currentWeekDate);
+      const weekDates=[...Array(7)].map((_,i)=>formatDateISO(addDays(weekStart,i)));
+
+      for(let d=1;d<=dim;d++){
+        const cell=document.createElement("div");
+        const full=formatDateISO(new Date(year,month,d));
+        cell.textContent=d;
+        if(weekDates.includes(full)) cell.classList.add("active-week");
+        if(full===formatDateISO(new Date())) cell.classList.add("today");
+        cell.onclick=()=>{currentWeekDate=new Date(year,month,d);loadAttendance(currentWeekDate);popup.classList.add("hidden");};
+        grid.appendChild(cell);
+      }
+      return;
+    }
+    if(calMode==="months"){
+      header.textContent=year;
+      grid.classList.add("months");
+      ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+      .forEach((m,i)=>{
+        const c=document.createElement("div");
+        c.textContent=m;
+        if(i===month) c.classList.add("active-week");
+        c.onclick=()=>{calendarDate.setMonth(i);calMode="days";buildCalendar();};
+        grid.appendChild(c);
+      });
+      return;
+    }
+    if(calMode==="years"){
+      grid.classList.add("years");
+      const startY=year-8;
+      header.textContent=`${startY} - ${startY+15}`;
+      for(let y=startY;y<=startY+15;y++){
+        const c=document.createElement("div");
+        c.textContent=y;
+        if(y===year) c.classList.add("active-week");
+        c.onclick=()=>{calendarDate.setFullYear(y);calMode="months";buildCalendar();};
+        grid.appendChild(c);
+      }
+    }
+  }
+
+  document.addEventListener("click",(e)=>{
+    if(popup && !popup.contains(e.target) && !document.getElementById("openCalendar").contains(e.target)){
+      popup.classList.add("hidden");
+    }
+  });
+  document.getElementById("openCalendar").onclick=()=>{ popup.classList.toggle("hidden"); calMode="days"; buildCalendar(); };
+  document.getElementById("calPrev").onclick=()=>{ if(calMode==="days") calendarDate.setMonth(calendarDate.getMonth()-1); else if(calMode==="months") calendarDate.setFullYear(calendarDate.getFullYear()-1); else calendarDate.setFullYear(calendarDate.getFullYear()-16); buildCalendar(); };
+  document.getElementById("calNext").onclick=()=>{ if(calMode==="days") calendarDate.setMonth(calendarDate.getMonth()+1); else if(calMode==="months") calendarDate.setFullYear(calendarDate.getFullYear()+1); else calendarDate.setFullYear(calendarDate.getFullYear()+16); buildCalendar(); };
+  document.getElementById("calHeader").onclick=()=>{ calMode = (calMode==="days")?"months":(calMode==="months")?"years":"days"; buildCalendar(); };
+
+  /* Week navigation */
+  document.getElementById("prevWeek").onclick=()=>{ currentWeekDate=addDays(currentWeekDate,-7); loadAttendance(currentWeekDate); };
+  document.getElementById("nextWeek").onclick=()=>{ currentWeekDate=addDays(currentWeekDate,7); loadAttendance(currentWeekDate); };
+
+  /* Init */
+  window.addEventListener("load",()=>{
+    loadAttendance();
+    setTimeout(renderTimeScaleAndConnectors,300);
+  });
+  </script>
+
+
+  <script>
+    const openedTabs = {};
+
+function openOrFocusTab(url) {
+    const win = window.open(url, url);
+
+    if (win) {
+        win.focus();
+    } else {
+        alert("Popup blocked! Please allow popups for this site.");
+    }
+} /* =========================================================
+     BREAK TIMER WITH DB SYNC
+     ========================================================= */
+
+  // ===== CONFIG =====
+  const START_BREAK_API = "https://192.168.5.60/SIPApi/api/v1/ivr/StartBreak";
+  const END_BREAK_API   = "https://192.168.5.60/SIPApi/api/v1/ivr/EndBreak";
+
+
+  // Replace with your actual AgentID source
+  const agentId = window.agentId || "webrtc_6001";
+
+  // ===== STATE =====
+  let isOnBreak = localStorage.getItem("isOnBreak") === "true";
+  let breakStartTime = localStorage.getItem("breakStartTime");
+  let breakInterval = null;
+
+  /* =========================================================
+     TIMER FUNCTIONS
+     ========================================================= */
+
+  function startBreakTimer() {
+    if (!breakStartTime || breakInterval) return;
+
+    const prevSeconds = parseInt(localStorage.getItem("breakElapsed") || "0", 10);
+    const start = new Date(breakStartTime).getTime();
+
+    breakInterval = setInterval(() => {
+      const now = Date.now();
+      const current = Math.floor((now - start) / 1000);
+      const total = prevSeconds + current;
+      updateBreakUI(total);
+    }, 1000);
+  }
+
+  function stopBreakTimer() {
+    if (breakInterval) {
+      clearInterval(breakInterval);
+      breakInterval = null;
+    }
+
+    const prevSeconds = parseInt(localStorage.getItem("breakElapsed") || "0", 10);
+    let current = 0;
+
+    if (breakStartTime) {
+      current = Math.floor((Date.now() - new Date(breakStartTime)) / 1000);
+    }
+
+    updateBreakUI(prevSeconds + current);
+  }
+
+  function updateBreakUI(totalSeconds) {
+    const h = Math.floor(totalSeconds / 3600).toString().padStart(2, "0");
+    const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, "0");
+    const s = (totalSeconds % 60).toString().padStart(2, "0");
+
+    document.getElementById("breakTimer").innerText = `${h}:${m}:${s}`;
+  }
+
+  /* =========================================================
+     UI STATE
+     ========================================================= */
+
+  function updateBreakButton() {
+    const btn = document.getElementById("breakBtn");
+
+    if (isOnBreak) {
+      btn.innerText = "End Break";
+      btn.classList.add("end");
+      startBreakTimer();
+    } else {
+      btn.innerText = "Start Break";
+      btn.classList.remove("end");
+      stopBreakTimer();
+    }
+  }
+
+  /* =========================================================
+     API HELPERS (FromForm)
+     ========================================================= */
+  function secToHHMMSS(seconds) {
+    const s = Number(seconds) || 0;
+    const h = Math.floor(s / 3600).toString().padStart(2, "0");
+    const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
+    const sec = (s % 60).toString().padStart(2, "0");
+    return `${h}:${m}:${sec}`;
+  }
+
+
+
+  function callStartBreakAPI(startTime) {
+    const formData = new FormData();
+    formData.append("AgentID", agentId);
+    formData.append("StartTime", startTime); // optional
+
+    return fetch(START_BREAK_API, {
+      method: "POST",
+      body: formData
+    });
+  }
+
+  function callEndBreakAPI(endTime) {
+    const formData = new FormData();
+    formData.append("AgentID", agentId);
+    formData.append("EndTime", endTime); // optional
+
+    return fetch(END_BREAK_API, {
+      method: "POST",
+      body: formData
+    });
+  }
+
+  /* =========================================================
+     BUTTON CLICK HANDLER
+     ========================================================= */
+
+
+  function showAttendanceToast(msg) {
+    const toast = document.getElementById("attendanceToast");
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => {
+      toast.classList.remove("show");
+    }, 2200);
+  }
+
+  document.getElementById("breakBtn").addEventListener("click", async () => {
+    document.getElementById("breakBtn").disabled = true;
+    try {
+      const isCheckedIn = localStorage.getItem("isCheckedIn") === "true";
+      const agentno = localStorage.getItem("SipUsername");
+      if (!isOnBreak) {
+        if (!isCheckedIn) {
+          showAttendanceToast("Not Checked-In.");
+          document.getElementById("breakBtn").disabled = false;
+          return;
+        }
+        // ===== START BREAK =====
+        breakStartTime = new Date().toISOString();
+        await callStartBreakAPI(breakStartTime);
+        localStorage.setItem("breakStartTime", breakStartTime);
+        localStorage.setItem("isOnBreak", "true");
+        isOnBreak = true;
+        // Pause queue when break starts
+        if (agentno) pauseAgentQueue(agentno);
+      } else {
+        // ===== END BREAK =====
+        const endTime = new Date().toISOString();
+        await callEndBreakAPI(endTime);
+        const prev = parseInt(localStorage.getItem("breakElapsed") || "0", 10);
+        const session = Math.floor((Date.now() - new Date(breakStartTime)) / 1000);
+        localStorage.setItem("breakElapsed", prev + session);
+        localStorage.removeItem("breakStartTime");
+        localStorage.setItem("isOnBreak", "false");
+        breakStartTime = null;
+        isOnBreak = false;
+        // Resume queue when break ends (if checked in)
+        if (agentno && isCheckedIn) resumeAgentQueue(agentno);
+      }
+      updateBreakButton();
+    } catch (err) {
+      console.error("Break API error", err);
+      showAttendanceToast("Break action failed. Please try again.");
+    } finally {
+      document.getElementById("breakBtn").disabled = false;
+    }
+  });
+
+  /* =========================================================
+     DAILY RESET (IMPORTANT)
+     ========================================================= */
+
+  const today = new Date().toISOString().split("T")[0];
+  const lastBreakDate = localStorage.getItem("breakDate");
+
+  if (lastBreakDate !== today) {
+    localStorage.removeItem("breakElapsed");
+    localStorage.removeItem("breakStartTime");
+    localStorage.setItem("isOnBreak", "false");
+  }
+
+  localStorage.setItem("breakDate", today);
+
+  /* =========================================================
+     INITIAL LOAD
+     ========================================================= */
+
+  updateBreakButton();
+  </script>
+
+<style>
+#logoutBtn {
+    background: #db5a3c;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-left: auto;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+#logoutBtn:hover {
+    background: #b13d22;
+}
+</style>
+    <script type="text/javascript" src="phone.js"></script>
+
+</body>
+</html>
+<script>
+(function(){const s=localStorage.getItem('kv-theme')||'dark';document.documentElement.setAttribute('data-theme',s);})();
+document.addEventListener('DOMContentLoaded', function() {
+  var tt = document.getElementById('themeToggle');
+  if(tt) tt.addEventListener('click', function(){
+    var h=document.documentElement,c=h.getAttribute('data-theme'),n=c==='dark'?'light':'dark';
+    h.setAttribute('data-theme',n); localStorage.setItem('kv-theme',n);
+  });
+  var an = document.getElementById('agentNameDisplay');
+  if(an) an.textContent = (localStorage.getItem('SipUsername')||'Agent').replace(/^webrtc_/i,'');
+});
+</script>
