@@ -1,0 +1,41 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Prepare Files') {
+            steps {
+                echo 'Preparing static files...'
+            }
+        }
+
+        stage('Deploy to IIS') {
+            steps {
+                script {
+                    // Change this path to your IIS site folder
+                    def targetPath = "C:\\inetpub\\wwwroot\\MyApp"
+
+                    // Clean old files (optional but recommended)
+                    bat "if exist ${targetPath} rmdir /s /q ${targetPath}"
+
+                    // Copy new files
+                    bat "xcopy * ${targetPath} /E /H /C /I /Y"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Deployment successful'
+        }
+        failure {
+            echo 'Deployment failed '
+        }
+    }
+}
