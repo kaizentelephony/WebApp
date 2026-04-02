@@ -2497,7 +2497,7 @@ function ReceiveCall(session) {
     var isOnBreak = localStorage.getItem("isOnBreak") === "true";
     var agentno = localStorage.getItem("SipUsername");
 
-    // If user is on break or not checked in, reject call and pause queue
+    
     if (isOnBreak || !isCheckedIn) {
     if (agentno) pauseAgentQueue(agentno);
     if (session.reject) session.reject();
@@ -2506,7 +2506,7 @@ function ReceiveCall(session) {
     return;
 }
 
-    // First Determine Identity from From
+    
     var callerID = session.remoteIdentity.displayName;
     var did = session.remoteIdentity.uri.user;
     if (typeof callerID === 'undefined') callerID = did;
@@ -2568,7 +2568,7 @@ function ReceiveCall(session) {
         buddyObj = MakeBuddy(buddyType, true, focusOnBuddy, false, callerID, did, null, false, null, AutoDeleteDefault, true);
     }
 
-    var startTime = moment.utc();
+    var startTime = moment();
 
     newLineNumber++;
     var lineObj = new Line(newLineNumber, callerID, did, buddyObj);
@@ -2598,7 +2598,7 @@ function ReceiveCall(session) {
     formData.append("AgentID", agentId);
     formData.append("MsiDn", did);
     formData.append("AgtStatus", "Received");
-    formData.append("BegTime", startTime.format("YYYY-MM-DD HH:mm:ss.SSS"));
+    formData.append("BegTime", startTime.format("YYYY-MM-DD HH:mm:ss"));
     formData.append("AgtStatusDuration", "0");
    if (session.channelId) {
     formData.append("Channel_ID", session.channelId);
@@ -2696,14 +2696,7 @@ function ReceiveCall(session) {
     var answerTimeout = 1000;
     if (!AutoAnswerEnabled  && IntercomPolicy == "enabled"){ // Check headers only if policy is allow
 
-        // https://github.com/InnovateAsterisk/Browser-Phone/issues/126
-        // Alert-Info: info=alert-autoanswer
-        // Alert-Info: answer-after=0
-        // Call-info: answer-after=0; x=y
-        // Call-Info: Answer-After=0
-        // Alert-Info: ;info=alert-autoanswer
-        // Alert-Info: <sip:>;info=alert-autoanswer
-        // Alert-Info: <sip:domain>;info=alert-autoanswer
+        
 
         var ci = session.request.headers["Call-Info"];
         if (ci !== undefined && ci.length > 0){
@@ -2743,12 +2736,7 @@ function ReceiveCall(session) {
         if(CurrentCalls == 0){ // There are no other calls, so you can answer
             console.log("Going to Auto Answer this call...");
             window.setTimeout(function(){
-                // If the call is with video, assume the auto answer is also
-                // In order for this to work nicely, the recipient maut be "ready" to accept video calls
-                // In order to ensure video call compatibility (i.e. the recipient must have their web cam in, and working)
-                // The NULL video should be configured
-                // https://github.com/InnovateAsterisk/Browser-Phone/issues/26
-                if(lineObj.SipSession.data.withvideo) {
+                    if(lineObj.SipSession.data.withvideo) {
                     AnswerVideoCall(lineObj.LineNumber);
                 }
                 else {
@@ -3146,8 +3134,55 @@ function RejectCall(lineNumber) {
     session.data.terminateby = "us";
     session.data.reasonCode = 486;
     session.data.reasonText = "Busy Here";
+    UpdateAgentCallStatus(0);
     teardownSession(lineObj);
 }
+
+function updateCallDurationStatus(lineObj, statusText) {
+    if (!lineObj || !lineObj.SipSession || !lineObj.SipSession.data) return;
+
+    var recordId = lineObj.SipSession.data.recordId;
+    if (!recordId) return;
+
+    var status = statusText || "";
+    if (!status) {
+        if (lineObj.SipSession.data.started) {
+            status = "Spoken";
+        } else if (lineObj.SipSession.data.earlyReject || lineObj.SipSession.data.terminateby === "them") {
+            status = "Call Cancelled";
+        } else {
+            status = "Call ended";
+        }
+    }
+
+    // If call was answered (startTime exists), we want spoken status
+    if (lineObj.SipSession.data.started) {
+        status = "Spoken";
+    }
+
+    var formData = new URLSearchParams();
+    formData.append("RecordID", recordId);
+    formData.append("AgtStatus", status);
+
+    fetch("https://192.168.5.60/SIPApi/api/v1/ivr/Updatecallduration", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: formData
+    })
+    .then(function(res) {
+        if (!res.ok) throw new Error("API call failed: " + res.status);
+        return res.text();
+    })
+    .then(function(result) {
+        console.log("Status updated:", result);
+    })
+    .catch(function(err) {
+        console.error("Failed to update status:", err.message);
+    });
+}
+
 function onInviteCancel(lineObj, response) {
     // Determine cancel reason
     var temp_cause = 0;
@@ -3178,32 +3213,9 @@ function onInviteCancel(lineObj, response) {
     lineObj.SipSession.data.reasonText = reasonText;
 
     // Send AgtStatus update to API
-    const recordId = lineObj.SipSession.data.recordId;
-    const statusToSend = reasonText;
+    updateCallDurationStatus(lineObj, reasonText);
 
-    if (recordId) {
-        const formData = new URLSearchParams();
-        formData.append("RecordID", recordId);
-        formData.append("AgtStatus", statusToSend);
-        // fetch("https://192.168.5.57:8181/restapi/rest/api/v4/logging/t3/updaterecord", {
-        fetch("https://192.168.5.60/SIPApi/api/v1/ivr/Updatecallduration", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: formData
-        })
-        .then(res => {
-            if (!res.ok) throw new Error("API call failed");
-            return res.text();
-        })
-        .then(result => {
-            console.log("Status updated:", result);
-        })
-        .catch(err => {
-            console.error("Failed to update status:", err.message);
-        });
-    }
+    UpdateAgentCallStatus(0);
 
     // Dispose session
     lineObj.SipSession.dispose().catch(function (error) {
@@ -3430,10 +3442,14 @@ function onSessionReceivedBye(lineObj, response){
 
     response.accept(); // Send OK
 
-    // teardownSession(lineObj);
+    // Answered calls should be marked as spoken
+    var status = lineObj.SipSession.data.started ? "Spoken" : "Call ended";
+    updateCallDurationStatus(lineObj, status);
+
     clearInterval(lineObj.SipSession.data.callTimer);
     $("#line-" + lineObj.LineNumber + "-ActiveCall").hide();
-     UpdateAgentCallStatus(0);
+    UpdateAgentCallStatus(0);
+    teardownSession(lineObj);
 }
 function onSessionReinvited(lineObj, response){
     // This may be used to include video streams
@@ -8069,38 +8085,7 @@ function endSession(lineNum) {
     lineObj.SipSession.data.reasonText = "Normal Call clearing";
 
     try {
-        const recordId = lineObj.SipSession.data.recordId;
-        const begTimeStr = lineObj.SipSession.data.callstart;
-
-        const begTime = moment.utc(begTimeStr, "YYYY-MM-DD HH:mm:ss UTC");
-        const endTime = moment.utc();
-        const duration = Math.floor(moment.duration(endTime.diff(begTime)).asSeconds());
-
-        const formData = new URLSearchParams();
-        formData.append("RecordID", recordId);
-        formData.append("AgtStatus", "Spoken");
-        // formData.append("AgtStatusDuration", duration.toString());
-
-        // fetch("https://192.168.5.57:8181/restapi/rest/api/v4/logging/t3/updaterecord", {
-        fetch("https://192.168.5.60/SIPApi/api/v1/ivr/Updatecallduration", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: formData
-        })
-        .then(res => {
-            if (!res.ok) throw new Error("POST failed: " + res.status);
-            return res.text();
-        })
-        .then(result => {
-            console.log("✅ Call update success:", result);
-            UpdateAgentCallStatus(0); // update to 'available' or idle
-        })
-        .catch(error => {
-            console.error("❌ Error during POST:", error);
-        });
-
+        updateCallDurationStatus(lineObj, "Spoken");
     } catch (err) {
         console.error("❌ Failed to prepare update:", err);
     }
@@ -8109,6 +8094,8 @@ function endSession(lineNum) {
     lineObj.SipSession.bye().catch(e => {
         console.warn("Failed to bye the session!", e);
     });
+
+    UpdateAgentCallStatus(0);
 
     $("#line-" + lineNum + "-msg").html(lang.call_ended);
     $("#line-" + lineNum + "-ActiveCall").hide();
@@ -14834,8 +14821,8 @@ function UpdateAgentCallStatus(Status) {
     formData.append("Call_Status", String(Status)); // explicit cast to string for form data
 
 
-     fetch("https://192.168.5.57:8181/restapi/rest/api/t4/updatestatus", {
-        //fetch("https://192.168.5.60/SIPApi/api/v1/ivr/UpdateAgentCallStatus", {
+     //fetch("https://192.168.5.57:8181/restapi/rest/api/t4/updatestatus", {
+        fetch("https://192.168.5.60/SIPApi/api/v1/ivr/UpdateAgentCallStatus", {
 
         method: "POST",
         headers: {
@@ -14848,10 +14835,10 @@ function UpdateAgentCallStatus(Status) {
         return response.text(); // response: plain text like "Success"
     })
     .then(data => {
-        console.log("✅ Agent status update success:", data);
+        console.log(" Agent status update success:", data);
     })
     .catch(err => {
-        console.error("❌ Error updating status:", err.message);
+        console.error("Error updating status:", err.message);
     });
 }
 // Show phone UI if already logged in
@@ -14875,7 +14862,7 @@ function openCrmWindow(lineNumber) {
 
     const assertParts = (lineObj.SipSession.data.decodedAssertId || "").split("|");
     const uniqueId  = assertParts[0] || "";
-    const recordId  = assertParts[1] || "";
+    const recordId  = lineObj.SipSession.data.recordId || "";
     const clientId  = lineObj.DisplayNumber || "";
 
     if (!window.crmCache) window.crmCache = {};
@@ -14884,6 +14871,16 @@ function openCrmWindow(lineNumber) {
     const popup = window.open("", "CRMFormWindow",
         "width=660,height=700,resizable=yes,scrollbars=yes");
     window.crmPopup = popup;
+
+    try {
+        const notifySound = new Audio("media/Alert.mp3");
+        notifySound.volume = 0.8;
+        notifySound.play().catch(function(err){
+            console.warn("CRM popup sound failed:", err);
+        });
+    } catch (err) {
+        console.warn("CRM popup sound unavailable:", err);
+    }
 
     const caseNum = "CASE-" +
         new Date().toISOString().slice(0, 10).replace(/-/g, "") +
@@ -15404,6 +15401,12 @@ function validateMinute(el) {
   var todayDate = new Date().toISOString().split("T")[0];
   document.getElementById("callbackDate").value = todayDate;
 
+  var now = new Date();
+  var currentHour = String(now.getHours()).padStart(2, '0');
+  var currentMinute = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById("hourInput").value = currentHour;
+  document.getElementById("minuteInput").value = currentMinute;
+
   function closePopup() {
     if (confirm("Close without saving? Any unsaved changes will be lost.")) {
       window.close();
@@ -15515,6 +15518,8 @@ function validateMinute(el) {
     var minute = document.getElementById("minuteInput").value;
     var timeValue = hour + ":" + minute;
 
+    const safeUnique = document.getElementById("caseId").textContent.trim() || "";
+
     window.opener._crmFormExtras = {
         SipUsername: localStorage.getItem("SipUsername") || "",
 
@@ -15522,7 +15527,7 @@ function validateMinute(el) {
 
         FirstName: document.getElementById("firstName").value || "",
         LastName:  document.getElementById("lastName").value  || "",
-        ID:        document.getElementById("accountId").value || "",
+        ID:        safeUnique,
 
         PhoneNo:  document.getElementById("phone").value   || "",
         Channel:  document.getElementById("channel").value || "",
@@ -15548,7 +15553,7 @@ function validateMinute(el) {
         ? document.getElementById("callbackDate").value + " " + timeValue
         : null,
 
-        CallbackNum:   document.getElementById("callbackPhone").value  || "",
+        CallbackNum:   document.getElementById("callbackPhone").value || document.getElementById("phone").value || "",
         AssignedAgent: document.getElementById("callbackAgent").value  || "",
         Callbacknotes: document.getElementById("callbackNotes").value  || "",
 
@@ -15582,8 +15587,10 @@ function validateMinute(el) {
             day: "numeric"
         }) + " at " + hours + ":" + mins;
 
+        var phone = document.getElementById("callbackPhone").value || document.getElementById("phone").value;
+
         document.getElementById("successCallbackText").textContent =
-            "Callback scheduled: " + fmt;
+            "Callback scheduled: " + fmt + (phone ? " · " + phone : "");
 
         cbEl.style.display = "flex";
     } else {
@@ -15642,7 +15649,9 @@ function submitCrmForm() {
         formData.append("ResolutionNotes",  extras.ResolutionNotes  || "");
         formData.append("Tags",             extras.Tags             || "");
         formData.append("schedulecall",     extras.schedulecall     || 0);
-        formData.append("CallbackDatetime", extras.CallbackDatetime || "");
+        if (extras.schedulecall) {
+            formData.append("CallbackDatetime", extras.CallbackDatetime || "");
+        }
         formData.append("CallbackNum",      extras.CallbackNum      || "");
         formData.append("AssignedAgent",    extras.AssignedAgent    || "");
         formData.append("Callbacknotes",    extras.Callbacknotes    || "");
